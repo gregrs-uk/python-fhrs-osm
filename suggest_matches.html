@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>FHRS suggested matches map</title>
+	<meta charset="utf-8" />
+
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+	<link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.css" />
+</head>
+<body>
+	<div id="mapid" style="width: 800px; height: 600px"></div>
+
+	<script src="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.js"></script>
+	<script src="http://code.jquery.com/jquery-2.1.0.min.js"></script>
+	<script>
+
+		var mymap = L.map('mapid').setView([52.372, -1.263], 16);
+
+		L.tileLayer('http://a.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+			maxZoom: 18,
+			attribution: '&copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ' +
+				'<a href="http://ratings.food.gov.uk/open-data/">FHRS</a> ' +
+				'data &copy Crown copyright and database right (OGL)'
+		}).addTo(mymap);
+
+        var geojsonMarkerOptions = {
+            radius: 5,
+            color: "#000",
+            fillColor: "#ff0",
+            weight: 1,
+            opacity: 1,
+            fillOpacity: 0.5
+        }
+
+        $.getJSON("./suggest_matches.json", function(data) {
+            L.geoJson(data, {
+                pointToLayer: function (feature, latlng) {
+                    return L.circleMarker(latlng, geojsonMarkerOptions);
+                },
+                onEachFeature: function (feature, layer) {
+                    layer.bindPopup(feature.properties.text);
+                }
+            }).addTo(mymap);
+        });
+
+	</script>
+</body>
+</html>
