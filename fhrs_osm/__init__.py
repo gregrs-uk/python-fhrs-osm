@@ -36,13 +36,13 @@ class Database(object):
         return self.connection.commit()
 
     def create_comparison_view(self, view_name='compare',
-                               osm_table='osm', fhrs_table='fhrs'):
+                               osm_table='osm', fhrs_table='fhrs_establishments'):
         """(Re)create database view to compare OSM and FHRS data. Drop any
         dependent views first.
 
         view_name (string): name for the view we're creating e.g. 'compare'
         osm_table (string): name of OSM database table
-        fhrs_table (string): name of FHRS database table
+        fhrs_table (string): name of FHRS establishments database table
         """
 
         # shorten names for convenience
@@ -76,7 +76,6 @@ class Database(object):
         view_name (string): name for the view we're creating e.g. 'compare'
         comparison_view (string): name of the comparison view created using
             create_comparison_view()
-        fhrs_table (string): name of FHRS database table
         """
 
         cur = self.connection.cursor()
@@ -92,7 +91,7 @@ class Database(object):
         self.commit()
 
     def create_suggest_matches_view(self, view_name='suggest_matches',
-                                    osm_table='osm', fhrs_table='fhrs',
+                                    osm_table='osm', fhrs_table='fhrs_establishments',
                                     distance_metres=250, levenshtein_distance=3):
         """(Re)create database view to suggest possible matches between OSM and
         FHRS entities, examining names for exact substring match or Levenshtein
@@ -101,7 +100,7 @@ class Database(object):
 
         view_name (string): name for the view we're creating e.g. 'compare'
         osm_table (string): name of OSM database table
-        fhrs_table (string): name of FHRS database table
+        fhrs_table (string): name of FHRS establishments database table
         distance_metres (numeric): max distance apart for points to be matched
         levenshtein_distance (integer): max Levenshtein distance for names to be matched
         """
@@ -122,7 +121,7 @@ class Database(object):
             'ST_Distance(' + o + '.geog, ' + f + '.geog) AS distance_metres,\n' +
             o + '.geog AS osm_geog, ' + f + '.geog AS fhrs_geog\n' +
             'FROM ' + o + '\n' +
-            'INNER JOIN fhrs\n' +
+            'INNER JOIN ' + fhrs_table + '\n' +
             'ON (' + f + '."BusinessName" LIKE \'%\' || ' + o + '.name || \'%\'\n' +
             '    OR levenshtein_less_equal(' + o + '.name, ' + f + '."BusinessName", ' +
                                            lev_dist + ') < ' + lev_dist + ')\n' +
