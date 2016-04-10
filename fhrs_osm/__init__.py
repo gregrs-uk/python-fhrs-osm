@@ -243,19 +243,17 @@ class OSMDataset(object):
                  field_list=[{'name': 'fhrs:id', 'format': 'INT'},
                              {'name': 'name', 'format': 'VARCHAR(100)'},
                              {'name': 'addr:postcode', 'format': 'CHAR(10)'}],
-                 bbox=[52.314,-1.356,52.412,-1.178], table_name='osm'):
+                 table_name='osm'):
         """Constructor
 
         tag_value_list (list of dicts): tag/value pairs to use in Overpass query
         tag_exists_list (list of strings): tags to use in Overpass query
         field_list (list of dicts): field/format dicts representing DB fields
-        bbox (list of 4 decimals): bounding box co-ordinates [S,W,N,E]
         table_name (string): database table name to use for storing OSM entities
         """
         self.tag_value_list = tag_value_list
         self.tag_exists_list = tag_exists_list
         self.field_list = field_list
-        self.bbox = bbox
         self.table_name = table_name
 
     def create_table(self, connection):
@@ -277,15 +275,16 @@ class OSMDataset(object):
         cur.execute(statement)
         connection.commit()
 
-    def run_overpass_query(self):
+    def run_overpass_query(self, bbox=[52.314,-1.356,52.412,-1.178]):
         """Run Overpass API query based on bounding box and tag list supplied.
 
+        bbox (list of 4 decimals): bounding box co-ordinates [S,W,N,E]
         Returns overpy.Result object
         """
         # header elements
         query = '[out:xml][timeout:25]'
         query += '[bbox:'
-        query += ','.join(map(str, self.bbox)) # comma separated list of bbox co-ordinates
+        query += ','.join(map(str, bbox)) # comma separated list of bbox co-ordinates
         query += '];\n'
 
         # tag/value list
