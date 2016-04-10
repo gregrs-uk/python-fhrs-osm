@@ -33,7 +33,7 @@
         }
 
         $.getJSON("./overview.json", function(data) {
-            L.geoJson(data, {
+            var markerLayer = L.geoJson(data, {
                 pointToLayer: function (feature, latlng) {
                     return L.circleMarker(latlng, geojsonMarkerOptions);
                 },
@@ -56,6 +56,7 @@
                     }
                 }
             }).addTo(mymap);
+            mymap.fitBounds(markerLayer.getBounds());
         });
 
 	</script>
