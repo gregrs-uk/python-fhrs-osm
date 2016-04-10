@@ -31,10 +31,6 @@ class Database(object):
         self.connection = psycopg2.connect(database=self.dbname)
         return self.connection
 
-    def commit(self):
-        """Commit changes to the database"""
-        return self.connection.commit()
-
     def create_comparison_view(self, view_name='compare',
                                osm_table='osm', fhrs_table='fhrs_establishments'):
         """(Re)create database view to compare OSM and FHRS data. Drop any
@@ -65,7 +61,7 @@ class Database(object):
             'full outer join ' + o + ' on ' + f + '."FHRSID" = ' + o + '."fhrs:id"\n' +
             'where coalesce(' + o + '.geog, ' + f + '.geog) is not null')
         cur.execute(statement)
-        self.commit()
+        self.connection.commit()
 
     def create_postcode_mismatch_view(self, view_name='postcode_mismatch',
                                       comparison_view='compare'):
@@ -88,7 +84,7 @@ class Database(object):
             'ORDER BY osm_postcode')
 
         cur.execute(statement)
-        self.commit()
+        self.connection.commit()
 
     def create_suggest_matches_view(self, view_name='suggest_matches',
                                     osm_table='osm', fhrs_table='fhrs_establishments',
@@ -130,7 +126,7 @@ class Database(object):
             'ORDER BY ' + o + '.name')
 
         cur.execute(statement)
-        self.commit()
+        self.connection.commit()
 
     def get_overview_geojson(self, view_name='compare'):
         """Create GeoJSON-formatted string using comparison view. This can be
@@ -395,8 +391,6 @@ class OSMDataset(object):
         for way in result.get_ways():
             self.write_entity(entity=way, lat=way.center_lat,
                              lon=way.center_lon, connection=connection)
-
-        connection.commit()
 
 
 class FHRSDataset(object):
