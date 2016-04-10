@@ -315,12 +315,12 @@ class OSMDataset(object):
         api = overpy.Overpass()
         return api.query(query)
 
-    def write_entity(self, entity, lat, lon, cursor):
+    def write_entity(self, entity, lat, lon, connection):
         """Write a single OSM node or way to the database
 
         entity (object): object representing the node or way
         lat/lon (decimals): latitude and longitude of point
-        cursor (object): database cursor
+        connection (object): database connection
         """
 
         # create list of fields still to match for this OSM entity
@@ -369,7 +369,17 @@ class OSMDataset(object):
         values = tuple(values_list)
         statement += ")"
 
-        cursor.execute(statement, values)
+        cur = connection.cursor()
+        
+        try:
+            cur.execute(statement, values)
+        except psycopg2.DataError:
+            connection.rollback()
+            print "Couldn't insert the following OSM data:"
+            print record
+            print "Continuing..."
+        else:
+            connection.commit()
 
     def write_result_nodes_and_ways(self, result, connection):
         """Write the OSM nodes and ways from the query result to the database
@@ -381,10 +391,10 @@ class OSMDataset(object):
         cur = connection.cursor()
         for node in result.get_nodes():
             self.write_entity(entity=node, lat=node.lat,
-                             lon=node.lon, cursor=cur)
+                             lon=node.lon, connection=connection)
         for way in result.get_ways():
             self.write_entity(entity=way, lat=way.center_lat,
-                             lon=way.center_lon, cursor=cur)
+                             lon=way.center_lon, connection=connection)
 
         connection.commit()
 
@@ -506,8 +516,6 @@ class FHRSDataset(object):
         xml_string (string): XML containing authority info
         connection (object): database connection
         """
-            
-        cur = connection.cursor()
 
         root = xml.etree.ElementTree.fromstring(xml_string)
 
@@ -540,8 +548,17 @@ class FHRSDataset(object):
             values = tuple(values_list)
             statement += ")"
 
-            cur.execute(statement, values)
-            connection.commit()
+            cur = connection.cursor()
+            
+            try:
+                cur.execute(statement, values)
+            except psycopg2.DataError:
+                connection.rollback()
+                print "Couldn't insert the following FHRS authority data:"
+                print record
+                print "Continuing..."
+            else:
+                connection.commit()
 
     def write_establishments(self, xml_string, connection):
         """Write the FHRS establishments from the XML string to the database
@@ -549,8 +566,6 @@ class FHRSDataset(object):
         xml_string (string): XML containing establishment info
         connection (object): database connection
         """
-
-        cur = connection.cursor()
 
         root = xml.etree.ElementTree.fromstring(xml_string)
 
@@ -593,8 +608,17 @@ class FHRSDataset(object):
             values = tuple(values_list)
             statement += ")"
 
-            cur.execute(statement, values)
-            connection.commit()
+            cur = connection.cursor()
+            
+            try:
+                cur.execute(statement, values)
+            except psycopg2.DataError:
+                connection.rollback()
+                print "Couldn't insert the following FHRS establishment data:"
+                print record
+                print "Continuing..."
+            else:
+                connection.commit()
     
     def get_authorities(self, connection, region_name=None):
         """Return a list of FHRS authority IDs
