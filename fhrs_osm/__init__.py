@@ -618,3 +618,34 @@ class FHRSDataset(object):
         for auth in cur.fetchall():
             authority_ids.append(auth[0])
         return authority_ids
+    
+    def get_bbox(self, connection, region_name=None, authority_id=None):
+        """Return a bounding box for FHRS establishments. If region_name is
+        specified, filter establishments based on this. If authority_id is
+        specified, filter establishments based on this. The presence of an
+        authority_id disables filtering by region name.
+        
+        Returns list of 4 decimals: bounding box co-ordinates [S,W,N,E]
+        """
+        
+        cur = connection.cursor()
+
+        query = 'SELECT ST_Extent(geog::geometry) FROM ' + self.est_table_name + ' est\n'
+        if authority_id is not None or region_name is not None:
+            query += ('LEFT JOIN fhrs_authorities auth\n' +
+                      'ON est."LocalAuthorityCode" = auth."LocalAuthorityIdCode"\n')
+        if authority_id is not None:
+            query += 'WHERE "LocalAuthorityId" = ' + str(authority_id)
+        elif region_name is not None:
+            query += 'WHERE "RegionName" = \'' + region_name + '\''
+        
+        cur.execute(query)
+        result = cur.fetchone()[0][4:-1] # remove BOX( and trailing )
+        
+        # split string into four co-ordinates
+        w_s, e_n = result.split(',')
+        w, s = w_s.split(' ')
+        e, n = e_n.split(' ')
+        
+        # return list of co-ordinates in correct order
+        return [s, w, n, e]
