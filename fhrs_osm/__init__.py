@@ -274,12 +274,10 @@ class OSMDataset(object):
         cur.execute('drop table if exists ' + self.table_name + ' cascade\n')
         statement = 'create table ' + self.table_name + '\n'
         # N.B. field names case sensitive because surrounded by ""
-        statement += '(id BIGINT, geog GEOGRAPHY(POINT, 4326), type VARCHAR(100),\n'
+        statement += '(id BIGINT, geog GEOGRAPHY(POINT, 4326), type CHAR(8),\n'
         for this_field in self.field_list:
-            statement += '"' + this_field['name'] + '" ' + this_field['format']
-            if this_field != self.field_list[-1]: # i.e. not the last field in the list
-                statement += ', '
-        statement += ')'
+            statement += '"' + this_field['name'] + '" ' + this_field['format'] + ','
+        statement += '\nPRIMARY KEY (id, type))'
         cur.execute(statement)
         connection.commit()
 
