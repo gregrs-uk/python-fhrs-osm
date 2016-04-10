@@ -1,5 +1,5 @@
 import overpy_mod as overpy
-import psycopg2 as dbapi2
+import psycopg2
 from collections import OrderedDict
 import urllib2
 import xml.etree.ElementTree
@@ -28,7 +28,7 @@ class Database(object):
 
     def connect(self):
         """Create a database connection"""
-        self.connection = dbapi2.connect(database=self.dbname)
+        self.connection = psycopg2.connect(database=self.dbname)
         return self.connection
 
     def commit(self):
