@@ -59,13 +59,11 @@ class Database(object):
             'when ' + o + '."id" is not null and ' + f + '."FHRSID" is null then \'OSM\'\n'
             'end as status,\n' +
             f + '."PostCode" as fhrs_postcode, ' + o + '."addr:postcode" as osm_postcode,\n' +
-            o + '."lon" as osm_lon, ' + o + '."lat" as osm_lat,\n' +
-            f + '."longitude" as fhrs_lon, ' + f + '."latitude" as fhrs_lat,\n' +
+            o + '."geog" as osm_geog, ' + f + '."geog" as fhrs_geog,\n' +
             f + '."FHRSID"\n' +
             'from ' + f + '\n' +
             'full outer join ' + o + ' on ' + f + '."FHRSID" = ' + o + '."fhrs:id"\n' +
-            'where coalesce(' + o + '."lon", ' + f + '."longitude") is not null and\n' +
-            'coalesce(' + o + '."lat", ' + f + '."latitude") is not null')
+            'where coalesce(' + o + '.geog, ' + f + '.geog) is not null')
         cur.execute(statement)
         self.commit()
 
@@ -120,16 +118,13 @@ class Database(object):
             o + ".id as osm_id, " + o + ".type as osm_type, " + f + '."FHRSID",\n' +
             f + '."AddressLine1", ' + f + '."AddressLine2", \n' +
             f + '."AddressLine3", ' + f + '."AddressLine4", ' + f + '."PostCode", \n' +
-            'ST_Distance_Sphere(ST_MakePoint(' + o + '.lon, ' + o + '.lat),\n' +
-            '                   ST_MakePoint(' + f + '.longitude, ' + f + '.latitude)) AS distance_metres,\n' +
-            o + '.lon AS osm_lon, ' + o + '.lat AS osm_lat,\n' +
-            f + '.longitude AS fhrs_lon, ' + f + '.latitude AS fhrs_lat\n' +
-            'FROM osm\n' +
+            'ST_Distance(' + o + '.geog, ' + f + '.geog) AS distance_metres,\n' +
+            o + '.geog AS osm_geog, ' + f + '.geog AS fhrs_geog\n' +
+            'FROM ' + o + '\n' +
             'INNER JOIN fhrs\n' +
             'ON (' + f + '."BusinessName" LIKE \'%\' || ' + o + '.name || \'%\'\n' +
             '   OR levenshtein(' + o + '.name, ' + f + '."BusinessName") < 3)\n' +
-            'AND ST_Distance_Sphere(ST_MakePoint(' + o + '.lon, ' + o + '.lat),\n' +
-            '                       ST_MakePoint(' + f + '.longitude, ' + f + '.latitude)) < 250\n' +
+            'AND ST_Distance(' + o + '.geog, ' + f + '.geog) < 250\n' +
             'WHERE ' + o + '."fhrs:id" IS NULL\n' +
             'ORDER BY ' + o + '.name')
 
@@ -154,9 +149,7 @@ class Database(object):
         "   SELECT 'FeatureCollection' as type, array_to_json(array_agg(f)) as features\n" +
         "   FROM (\n" +
         "       SELECT 'Feature' as type,\n" +
-        "       ST_AsGeoJSON(\n" +
-        "           coalesce(ST_MakePoint(osm_lon,osm_lat), ST_MakePoint(fhrs_lon,fhrs_lat))\n" +
-        "       )::json as geometry,\n" +
+        "       ST_AsGeoJSON(coalesce(osm_geog, fhrs_geog))::json as geometry,\n" +
         "       row_to_json((\n" +
         "           SELECT l FROM (\n" +
         "               SELECT string_agg(\n" +
@@ -177,7 +170,7 @@ class Database(object):
         "           ) as l\n" +
         "       )) as properties\n" +
         "       FROM " + view_name + " as lg\n" +
-        "       GROUP BY coalesce(ST_MakePoint(osm_lon,osm_lat), ST_MakePoint(fhrs_lon,fhrs_lat))\n" +
+        "       GROUP BY coalesce(osm_geog, fhrs_geog)\n" +
         "   ) as f\n" +
         ") as fc;")
 
@@ -201,7 +194,7 @@ class Database(object):
         "   SELECT 'FeatureCollection' as type, array_to_json(array_agg(f)) as features\n" +
         "   FROM (\n" +
         "       SELECT 'Feature' as type,\n" +
-        "       ST_AsGeoJSON(ST_MakePoint(osm_lon,osm_lat))::json as geometry,\n" +
+        "       ST_AsGeoJSON(osm_geog)::json as geometry,\n" +
         "       row_to_json((\n" +
         "           SELECT l FROM (\n" +
         "               SELECT (\n" +
@@ -280,7 +273,7 @@ class OSMDataset(object):
         cur.execute('drop table if exists ' + self.table_name + ' cascade\n')
         statement = 'create table ' + self.table_name + '\n'
         # N.B. field names case sensitive because surrounded by ""
-        statement += '("id" BIGINT, "lon" FLOAT, "lat" FLOAT, type VARCHAR(100),\n'
+        statement += '(id BIGINT, geog GEOGRAPHY(POINT, 4326), type VARCHAR(100),\n'
         for this_field in self.field_list:
             statement += '"' + this_field['name'] + '" ' + this_field['format']
             if this_field != self.field_list[-1]: # i.e. not the last field in the list
@@ -340,8 +333,8 @@ class OSMDataset(object):
         record = OrderedDict()
 
         record['id'] = entity.id
-        record['lon'] = lon
-        record['lat'] = lat
+        record['geog'] = ("ST_GeogFromText('SRID=4326;POINT(" +
+                          str(lon) + " " + str(lat) + ")')")
         record['type'] = None
         if (type(entity) == overpy.Node):
             record['type'] = 'node'
@@ -366,8 +359,11 @@ class OSMDataset(object):
         values_list = []
         statement = "insert into " + self.table_name + " values ("
         for key in record.keys():
-            values_list.append(record[key])
-            statement += "%s"
+            if key == 'geog':
+                statement += record['geog']
+            else:
+                values_list.append(record[key])
+                statement += "%s"
             # if not last key/value pair in record, add a comma
             if (key != record.keys()[-1]):
                 statement += ","
@@ -471,7 +467,7 @@ class FHRSDataset(object):
         cur.execute('drop table if exists ' + self.table_name + ' cascade')
         statement = 'create table ' + self.table_name + ' '
         # N.B. field names case sensitive because surrounded by ""
-        statement += '("FHRSID" INT, "longitude" FLOAT, "latitude" FLOAT, '
+        statement += '("FHRSID" INT, geog GEOGRAPHY(POINT, 4326), '
         for this_field in self.field_list:
             statement += '"' + this_field['name'] + '" ' + this_field['format']
             if this_field != self.field_list[-1]: # i.e. not the last field in the list
@@ -498,11 +494,13 @@ class FHRSDataset(object):
 
             # put FHRSID and lat/lon into record dict
             record['FHRSID'] = est.find(self.xmlns + 'FHRSID').text
-            for geocode in est.iter(self.xmlns + 'geocode'):
-                if geocode.find(self.xmlns + 'longitude') is not None:
-                    record['longitude'] = geocode.find(self.xmlns + 'longitude').text
-                if geocode.find(self.xmlns + 'latitude') is not None:
-                    record['latitude'] = geocode.find(self.xmlns + 'latitude').text
+            record['geog'] = None
+            geocode = est.find(self.xmlns + 'geocode')
+            lon = geocode.find(self.xmlns + 'longitude').text
+            lat = geocode.find(self.xmlns + 'latitude').text
+            if lon is not None and lat is not None:
+                record['geog'] = ("ST_GeogFromText('SRID=4326;POINT(" +
+                                  str(lon) + " " + str(lat) + ")')")
 
             # start with this record's other fields set to None
             for this_field in self.field_list:
@@ -517,8 +515,11 @@ class FHRSDataset(object):
             values_list = []
             statement = "insert into " + self.table_name + " values ("
             for key in record.keys():
-                values_list.append(record[key])
-                statement += "%s"
+                if key == 'geog' and record['geog'] is not None:
+                    statement += record['geog']
+                else:
+                    values_list.append(record[key])
+                    statement += "%s"
                 # if not last key/value pair in record, add a comma
                 if (key != record.keys()[-1]):
                     statement += ","
