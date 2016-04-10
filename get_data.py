@@ -13,6 +13,7 @@ xmlstring = fhrs.download_authorities()
 print "Writing data for FHRS authorities"
 fhrs.write_authorities(xmlstring, con)
 print "Querying database for authority IDs"
+# remove region_name argument below to get authorities in all regions
 fhrs_authorities = fhrs.get_authorities(connection=con, region_name='West Midlands')
 
 # comment out line below to get data for all authorities, not just Rugby
