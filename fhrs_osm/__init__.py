@@ -413,8 +413,10 @@ class FHRSDataset(object):
                                  {'name': 'AddressLine2', 'format': 'VARCHAR(100)'},
                                  {'name': 'AddressLine3', 'format': 'VARCHAR(100)'},
                                  {'name': 'AddressLine4', 'format': 'VARCHAR(100)'},
-                                 {'name': 'PostCode', 'format': 'CHAR(10)'}],
-                 auth_field_list=[{'name': 'Name', 'format': 'VARCHAR(100)'},
+                                 {'name': 'PostCode', 'format': 'CHAR(10)'},
+                                 {'name': 'LocalAuthorityCode', 'format': 'SMALLINT'}],
+                 auth_field_list=[{'name': 'LocalAuthorityIdCode', 'format': 'SMALLINT'},
+                                  {'name': 'Name', 'format': 'VARCHAR(100)'},
                                   {'name': 'RegionName', 'format': 'VARCHAR(100)'}],
                  est_table_name='fhrs_establishments', auth_table_name='fhrs_authorities'):
         """Constructor
@@ -471,7 +473,7 @@ class FHRSDataset(object):
         cur.execute('drop table if exists ' + self.auth_table_name + ' cascade')
         statement = 'create table ' + self.auth_table_name + ' '
         # N.B. field names case sensitive because surrounded by ""
-        statement += '("LocalAuthorityId" INT, '
+        statement += '("LocalAuthorityId" SMALLINT, '
         for this_field in self.auth_field_list:
             statement += '"' + this_field['name'] + '" ' + this_field['format']
             if this_field != self.auth_field_list[-1]: # i.e. not the last field in the list
