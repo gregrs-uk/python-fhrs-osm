@@ -405,78 +405,144 @@ class FHRSDataset(object):
                    ('accept', 'application/xml'),
                    ('content-type', 'application/xml')]
     xmlns = '{http://schemas.datacontract.org/2004/07/FHRS.Model.Detailed}'
-    xmlns_basic = '{http://schemas.datacontract.org/2004/07/FHRS.Model.Basic}'
+    #xmlns_basic = '{http://schemas.datacontract.org/2004/07/FHRS.Model.Basic}'
 
-    def __init__(self, field_list=[{'name': 'BusinessName', 'format': 'VARCHAR(100)'},
-                                   {'name': 'AddressLine1', 'format': 'VARCHAR(200)'},
-                                   {'name': 'AddressLine2', 'format': 'VARCHAR(100)'},
-                                   {'name': 'AddressLine3', 'format': 'VARCHAR(100)'},
-                                   {'name': 'AddressLine4', 'format': 'VARCHAR(100)'},
-                                   {'name': 'PostCode', 'format': 'CHAR(10)'}],
-                 table_name='fhrs'):
+    def __init__(self,
+                 est_field_list=[{'name': 'BusinessName', 'format': 'VARCHAR(100)'},
+                                 {'name': 'AddressLine1', 'format': 'VARCHAR(200)'},
+                                 {'name': 'AddressLine2', 'format': 'VARCHAR(100)'},
+                                 {'name': 'AddressLine3', 'format': 'VARCHAR(100)'},
+                                 {'name': 'AddressLine4', 'format': 'VARCHAR(100)'},
+                                 {'name': 'PostCode', 'format': 'CHAR(10)'}],
+                 auth_field_list=[{'name': 'Name', 'format': 'VARCHAR(100)'},
+                                  {'name': 'RegionName', 'format': 'VARCHAR(100)'}],
+                 est_table_name='fhrs_establishments', auth_table_name='fhrs_authorities'):
         """Constructor
 
-        field_list (list of dicts): field/format dicts representing DB fields
-        table_name (string): database table name to use for storing establishments
+        est_field_list (list of dicts): field/format dicts for establishment DB fields
+        auth_field_list (list of dicts): field/format dicts for authority DB fields
+        est_table_name (string): database table name to use for storing establishments
+        auth_table_name (string): database table name to use for storing authorities
         """
         # list of field/format dicts representing database fields
-        self.field_list = field_list
+        self.est_field_list = est_field_list
+        self.auth_field_list = auth_field_list
         # database table name to use for storing FHRS establishments
-        self.table_name = table_name
+        self.est_table_name = est_table_name
+        self.auth_table_name = auth_table_name
 
-    def get_authorities(self):
-        """Use the FHRS API to download a list of authority IDs
-
-        Returns list of integers
-        """
-        url = self.api_base_url + 'Authorities/basic'
-        request = urllib2.Request(url)
-        for header, content in self.api_headers:
-            request.add_header(header, content)
-        response = urllib2.urlopen(request)
-        xml_string = response.read()
-
-        root = xml.etree.ElementTree.fromstring(xml_string)
-        # list to hold authority IDs
-        authorities = []
-        for auth in root.iter(self.xmlns_basic + 'authority'):
-            auth_id = int(auth.find(self.xmlns_basic + 'LocalAuthorityId').text)
-            authorities.append(auth_id)
-        return authorities
-
-    def download_establishments_for_authority(self, authority_id=371):
-        """Use the FHRS API to download establishments for a single authority
-        authority_id (integer): ID of authority
+    def api_download(self, endpoint):
+        """Use the FHRS API to download XML data
 
         Returns XML string
         """
-        url = self.api_base_url + 'Establishments?localAuthorityId=' + str(authority_id)
+        url = self.api_base_url + endpoint
         request = urllib2.Request(url)
         for header, content in self.api_headers:
             request.add_header(header, content)
         response = urllib2.urlopen(request)
         return response.read()
+    
+    def download_authorities(self):
+        """Calls api_download to download authorities
 
-    def create_table(self, connection):
-        """(Re)create the FHRS database table, first dropping any existing table
-        with the same name and any views dependent on it.
+        Returns XML string
+        """
+        return self.api_download('Authorities')        
+
+    def download_establishments_for_authority(self, authority_id=371):
+        """Calls api_download to download establishments for a single authority
+        
+        authority_id (integer): ID of authority
+        Returns XML string
+        """
+        endpoint = 'Establishments?localAuthorityId=' + str(authority_id)
+        return self.api_download(endpoint=endpoint)
+
+    def create_authority_table(self, connection):
+        """(Re)create the FHRS authority table, first dropping any existing
+        table with the same name and any views dependent on it.
 
         connection (object): database connection object
         """
 
         cur = connection.cursor()
         cur.execute('drop view if exists compare cascade')
-        cur.execute('drop table if exists ' + self.table_name + ' cascade')
-        statement = 'create table ' + self.table_name + ' '
+        cur.execute('drop table if exists ' + self.auth_table_name + ' cascade')
+        statement = 'create table ' + self.auth_table_name + ' '
         # N.B. field names case sensitive because surrounded by ""
-        statement += '("FHRSID" INT, geog GEOGRAPHY(POINT, 4326), '
-        for this_field in self.field_list:
+        statement += '("LocalAuthorityId" INT, '
+        for this_field in self.auth_field_list:
             statement += '"' + this_field['name'] + '" ' + this_field['format']
-            if this_field != self.field_list[-1]: # i.e. not the last field in the list
+            if this_field != self.auth_field_list[-1]: # i.e. not the last field in the list
                 statement += ', '
         statement += ')'
         cur.execute(statement)
         connection.commit()
+    
+    def create_establishment_table(self, connection):
+        """(Re)create the FHRS establishment table, first dropping any existing
+        table with the same name and any views dependent on it.
+
+        connection (object): database connection object
+        """
+
+        cur = connection.cursor()
+        cur.execute('drop view if exists compare cascade')
+        cur.execute('drop table if exists ' + self.est_table_name + ' cascade')
+        statement = 'create table ' + self.est_table_name + ' '
+        # N.B. field names case sensitive because surrounded by ""
+        statement += '("FHRSID" INT, geog GEOGRAPHY(POINT, 4326), '
+        for this_field in self.est_field_list:
+            statement += '"' + this_field['name'] + '" ' + this_field['format']
+            if this_field != self.est_field_list[-1]: # i.e. not the last field in the list
+                statement += ', '
+        statement += ')'
+        cur.execute(statement)
+        connection.commit()
+        
+    def write_authorities(self, xml_string, connection):
+        """Write the FHRS authorities from the XML string to the database
+
+        xml_string (string): XML containing authority info
+        connection (object): database connection
+        """
+            
+        cur = connection.cursor()
+
+        root = xml.etree.ElementTree.fromstring(xml_string)
+
+        for auth in root.iter(self.xmlns + 'authority'):
+            # create a blank dict to store relevant data for this establishment
+            # need to keep it in order so we can write it to the database
+            record = OrderedDict()
+
+            # put FHRSID and lat/lon into record dict
+            record['LocalAuthorityId'] = auth.find(self.xmlns + 'LocalAuthorityId').text
+            
+            # start with this record's other fields set to None
+            for this_field in self.auth_field_list:
+                record[this_field['name']] = None
+
+            # fill record dict from XML using field list
+            for this_field in self.auth_field_list:
+                if auth.find(self.xmlns + this_field['name']).text is not None:
+                    record[this_field['name']] = auth.find(self.xmlns + this_field['name']).text
+
+            # create an SQL statement and matching tuple of values to insert
+            values_list = []
+            statement = "insert into " + self.auth_table_name + " values ("
+            for key in record.keys():
+                values_list.append(record[key])
+                statement += "%s"
+                # if not last key/value pair in record, add a comma
+                if (key != record.keys()[-1]):
+                    statement += ","
+            values = tuple(values_list)
+            statement += ")"
+
+            cur.execute(statement, values)
+            connection.commit()
 
     def write_establishments(self, xml_string, connection):
         """Write the FHRS establishments from the XML string to the database
@@ -505,17 +571,17 @@ class FHRSDataset(object):
                                   str(lon) + " " + str(lat) + ")')")
 
             # start with this record's other fields set to None
-            for this_field in self.field_list:
+            for this_field in self.est_field_list:
                 record[this_field['name']] = None
 
             # fill record dict from XML using field list
-            for this_field in self.field_list:
+            for this_field in self.est_field_list:
                 if est.find(self.xmlns + this_field['name']).text is not None:
                     record[this_field['name']] = est.find(self.xmlns + this_field['name']).text
 
             # create an SQL statement and matching tuple of values to insert
             values_list = []
-            statement = "insert into " + self.table_name + " values ("
+            statement = "insert into " + self.est_table_name + " values ("
             for key in record.keys():
                 if key == 'geog' and record['geog'] is not None:
                     statement += record['geog']
@@ -530,3 +596,23 @@ class FHRSDataset(object):
 
             cur.execute(statement, values)
             connection.commit()
+    
+    def get_authorities(self, connection, region_name=None):
+        """Return a list of FHRS authority IDs
+
+        connection (object): database connection
+        region_name (string): if supplied, only return the IDs of local
+            authorities within this region
+        Returns local authority IDs as a list of integers
+        """
+        
+        cur = connection.cursor()
+
+        query = 'SELECT "LocalAuthorityId" from ' + self.auth_table_name + '\n'
+        if region_name is not None:
+            query += 'WHERE "RegionName" = \'' + region_name + '\''
+        cur.execute(query)
+        authority_ids = []
+        for auth in cur.fetchall():
+            authority_ids.append(auth[0])
+        return authority_ids

@@ -14,13 +14,21 @@ osm.write_result_nodes_and_ways(result=result, connection=con)
 
 # get FHRS data
 fhrs = FHRSDataset()
-print "Creating FHRS database table"
-fhrs.create_table(connection=con)
+print "Creating FHRS authority database table"
+fhrs.create_authority_table(connection=con)
 
-print "Getting list of FHRS authorities"
-fhrs_authorities = fhrs.get_authorities()
+print "Getting data for FHRS authorities"
+xmlstring = fhrs.download_authorities()
+print "Writing data for FHRS authorities"
+fhrs.write_authorities(xmlstring, con)
+print "Querying database for authority IDs"
+fhrs_authorities = fhrs.get_authorities(connection=con, region_name='West Midlands')
+
 # comment out line below to get data for all authorities, not just Rugby
 fhrs_authorities = [371]
+
+print "Creating FHRS establishment database table"
+fhrs.create_establishment_table(connection=con)
 
 for this_authority in fhrs_authorities:
     print "Getting data for authority " + str(this_authority)
