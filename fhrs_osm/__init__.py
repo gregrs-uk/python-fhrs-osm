@@ -109,6 +109,7 @@ class Database(object):
         # shorten names for convenience
         o = osm_table
         f = fhrs_table
+        lev_dist = str(levenshtein_distance)
 
         cur = self.connection.cursor()
         cur.execute('drop view if exists ' + view_name + ' cascade')
@@ -123,7 +124,8 @@ class Database(object):
             'FROM ' + o + '\n' +
             'INNER JOIN fhrs\n' +
             'ON (' + f + '."BusinessName" LIKE \'%\' || ' + o + '.name || \'%\'\n' +
-            '   OR levenshtein(' + o + '.name, ' + f + '."BusinessName") < 3)\n' +
+            '    OR levenshtein_less_equal(' + o + '.name, ' + f + '."BusinessName", ' +
+                                           lev_dist + ') < ' + lev_dist + ')\n' +
             'AND ST_Distance(' + o + '.geog, ' + f + '.geog) < 250\n' +
             'WHERE ' + o + '."fhrs:id" IS NULL\n' +
             'ORDER BY ' + o + '.name')
