@@ -128,6 +128,26 @@ class Database(object):
         
         self.connection.commit()
         return True
+    
+    def get_inhabited_districts(self, fhrs_table='fhrs_establishments', osm_table='osm'):
+        """Return a list of Boundary Line district IDs for which there is some
+        data present in the database.
+
+        districts_table (string): name of districts database table
+        Returns district IDs as a list of integers
+        """
+
+        cur = self.connection.cursor()
+
+        query = ('select distinct coalesce(fhrs.district_id, osm.district_id) as dist_id\n' +
+                 'from ' + fhrs_table + ' fhrs, ' + osm_table + ' osm\n' + 
+                 'order by dist_id')
+        cur.execute(query)
+
+        district_ids = []
+        for dist in cur.fetchall():
+            district_ids.append(dist[0])
+        return district_ids    
 
     def create_comparison_view(self, view_name='compare', osm_table='osm',
                                fhrs_table='fhrs_establishments'):

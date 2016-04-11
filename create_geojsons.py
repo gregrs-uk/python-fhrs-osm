@@ -3,7 +3,8 @@ from fhrs_osm import *
 db = Database()
 db.connect()
 
-districts = [182, 239, 183]
+print "Getting list of districts which contain some data"
+districts = db.get_inhabited_districts()
 
 for this_id in districts:
     print "Creating overview GeoJSON for district " + str(this_id)
