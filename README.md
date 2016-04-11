@@ -1,5 +1,5 @@
 # [python-fhrs-osm](http://github.com/gregrs-uk/python-fhrs-osm)
-Python tools for downloading and comparing Food Hygiene Rating Scheme (FHRS) and OpenStreetMap (OSM) data and finding possible matches between it, together with Leaflet slippy maps for visualising the data. OSM ways are simplified to a single point at the center of the way.
+Python tools for downloading and comparing Food Hygiene Rating Scheme (FHRS) and OpenStreetMap (OSM) data and finding possible matches between it, together with Leaflet slippy maps for visualising the data.
 
 ## Features
 * Download specific OpenStreetMap and FHRS data using a modified version of overpy and the FHRS API and parse it into a PostgreSQL/PostGIS database
@@ -9,23 +9,29 @@ Python tools for downloading and comparing Food Hygiene Rating Scheme (FHRS) and
 
 ## Requirements
 * Tested using Python 2.7 on Ubuntu and Mac OS X
-* Uses the following Python modules:
-    * Modified version of overpy allowing way centroids to be parsed (module included as overpy_mod). Hopefully this functionality will be included in later versions of overpy as I have made my modifications available through pull requests
-    * psycopg2 (can be installed with pip)
+* Tested using PostgreSQL 9.3
 
 ## Installation
-* Install psycopg2 module (run `pip install psycopg2`)
-* Create PostgreSQL database (run `createdb fhrs`)
-* Enable PostGIS extension using SQL command `CREATE EXTENSION postgis;`
-* Enable fuzzy string matching using SQL command `CREATE EXTENSION fuzzystrmatch;`
+1. Download the Boundary Line shapefiles from
+[Ordnance Survey](https://www.ordnancesurvey.co.uk/opendatadownload/) and
+place the four `district_borough_unitary_region.*` files in the `shapefiles` directory. (These are used to compute which district FHRS establishments and OSM entities are in so that relavitely small GeoJSON files can be created, one for each district)
+* Run `setup.sh`, which should:
+    * Install psycopg2 module
+    * (Re)create `fhrs` PostgreSQL database
+    * Enable PostGIS and fuzzystrmatch extensions
+    * Import district boundaries from shapefiles
+    * Run `python get_data.py` to download OpenStreetMap and FHRS data to the PostgreSQL database
+        * By default, data for the Rugby and Warwick areas are downloaded, but this can be altered in `get_data.py`
+        * FHRS data is always downloaded one authority at a time
+        * The OSM tag/value pairs to query can also be easily modified. Please see the docstrings in `fhrs_osm/__init__.py` for details)
+    * Run `python process_data.py` to compute which district FHRS establishments and OSM entities are in and to create the database views
+    * Run `python create_geojsons.py` to create a GeoJSON file for each district which contains data
 
 ## Usage
-1. Run `python get_data.py` to download OpenStreetMap and FHRS data to the PostgreSQL database.
-    * By default, data for the Rugby area is downloaded, but this can be altered by passing arguments to the relevant functions in `get_data.py`. FHRS data is always downloaded one authority at a time
-    * The OSM tag/value pairs to query can also be easily modified
-    * Please see the docstrings in `fhrs_osm/__init__.py` for details
-* Run `python overview_geojson.py > overview.json` and open `overview.html` in a browser to see an overview map (see below)
-* Run `python suggest_matches_geojson.py > suggest_matches.json` and open `suggest_matches.html` in a browser to see a map of suggested matches between OSM and FHRS data (see below)
+* Open `overview.html` in a browser to visualise the FHRS and OSM data (see below). Adding a question mark followed by the district ID loads data for that district e.g. `overview.html?182`
+* Open `suggest_matches.html` in a browser to see a map which suggests matching FHRS establishments for OSM entities (see below). Adding a question mark followed by the district ID loads data for that district e.g. `suggest_matches.html?182`
+* The `compare` and `suggest_matches` database views can be used to compare FHRS with OSM data and suggest matching FHRS establishments for OSM entities. (These are used to create GeoJSON files for the slippy maps)
+* The `postcode_mismatch` database view can be used to list OSM entities with an `fhrs:id` tag for which the FHRS postcode does not match the OSM one
 
 ## Overview map
 
@@ -48,6 +54,11 @@ By default, this map shows OSM entities with possible matches in the FHRS databa
 * Either FHRS name contains OSM name within it or names are closely matched using Levenshtein distance algorithm
 
 Clicking on a point shows links to the OSM node/way web page and the FHRS establishment web page, as well as allowing the user to copy relevant tag/value pairs into JOSM
+
+## Notes
+
+OSM ways are simplified to a single point at the center of the way. We use a modified version of overpy (overpy_mod) which, amongst other things, allows way centroids to be parsed. Hopefully this functionality will be included in later versions of overpy as I have made my modifications available through pull requests
+
 
 ## Copyright
 
