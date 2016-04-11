@@ -8,7 +8,7 @@ import xml.etree.ElementTree
 class Database(object):
     """A class which represents our PostgreSQL comparison database, which
     will consist of an OSM table, an FHRS table and a comparison view.
-    
+
     connection (object): database connection, created with connect()
     """
 
@@ -173,7 +173,7 @@ class Database(object):
 
         cur.execute(query)
         return cur.fetchone()[0]
-        
+
     def get_suggest_matches_geojson(self, view_name='suggest_matches'):
         """Create GeoJSON-formatted string using the suggest matches view. This
         can be used to display data on a Leaflet slippy map.
@@ -365,7 +365,7 @@ class OSMDataset(object):
         statement += ")"
 
         cur = connection.cursor()
-        
+
         try:
             cur.execute(statement, values)
         except psycopg2.DataError:
@@ -444,17 +444,17 @@ class FHRSDataset(object):
             request.add_header(header, content)
         response = urllib2.urlopen(request)
         return response.read()
-    
+
     def download_authorities(self):
         """Calls api_download to download authorities
 
         Returns XML string
         """
-        return self.api_download('Authorities')        
+        return self.api_download('Authorities')
 
     def download_establishments_for_authority(self, authority_id=371):
         """Calls api_download to download establishments for a single authority
-        
+
         authority_id (integer): ID of authority
         Returns XML string
         """
@@ -481,7 +481,7 @@ class FHRSDataset(object):
         statement += ')'
         cur.execute(statement)
         connection.commit()
-    
+
     def create_establishment_table(self, connection):
         """(Re)create the FHRS establishment table, first dropping any existing
         table with the same name and any views dependent on it.
@@ -502,7 +502,7 @@ class FHRSDataset(object):
         statement += ')'
         cur.execute(statement)
         connection.commit()
-        
+
     def write_authorities(self, xml_string, connection):
         """Write the FHRS authorities from the XML string to the database
 
@@ -519,7 +519,7 @@ class FHRSDataset(object):
 
             # put FHRSID and lat/lon into record dict
             record['LocalAuthorityId'] = auth.find(self.xmlns + 'LocalAuthorityId').text
-            
+
             # start with this record's other fields set to None
             for this_field in self.auth_field_list:
                 record[this_field['name']] = None
@@ -542,7 +542,7 @@ class FHRSDataset(object):
             statement += ")"
 
             cur = connection.cursor()
-            
+
             try:
                 cur.execute(statement, values)
             except psycopg2.DataError:
@@ -602,7 +602,7 @@ class FHRSDataset(object):
             statement += ")"
 
             cur = connection.cursor()
-            
+
             try:
                 cur.execute(statement, values)
             except psycopg2.DataError:
@@ -612,7 +612,7 @@ class FHRSDataset(object):
                 print "Continuing..."
             else:
                 connection.commit()
-    
+
     def get_authorities(self, connection, region_name=None):
         """Return a list of FHRS authority IDs
 
@@ -621,7 +621,7 @@ class FHRSDataset(object):
             authorities within this region
         Returns local authority IDs as a list of integers
         """
-        
+
         cur = connection.cursor()
 
         query = 'SELECT "LocalAuthorityId" from ' + self.auth_table_name + '\n'
@@ -632,16 +632,16 @@ class FHRSDataset(object):
         for auth in cur.fetchall():
             authority_ids.append(auth[0])
         return authority_ids
-    
+
     def get_bbox(self, connection, region_name=None, authority_id=None):
         """Return a bounding box for FHRS establishments. If region_name is
         specified, filter establishments based on this. If authority_id is
         specified, filter establishments based on this. The presence of an
         authority_id disables filtering by region name.
-        
+
         Returns list of 4 decimals: bounding box co-ordinates [S,W,N,E]
         """
-        
+
         cur = connection.cursor()
 
         query = 'SELECT ST_Extent(geog::geometry) FROM ' + self.est_table_name + ' est\n'
@@ -652,14 +652,14 @@ class FHRSDataset(object):
             query += 'WHERE "LocalAuthorityId" = ' + str(authority_id)
         elif region_name is not None:
             query += 'WHERE "RegionName" = \'' + region_name + '\''
-        
+
         cur.execute(query)
         result = cur.fetchone()[0][4:-1] # remove BOX( and trailing )
-        
+
         # split string into four co-ordinates
         w_s, e_n = result.split(',')
         w, s = w_s.split(' ')
         e, n = e_n.split(' ')
-        
+
         # return list of co-ordinates in correct order
         return [s, w, n, e]
