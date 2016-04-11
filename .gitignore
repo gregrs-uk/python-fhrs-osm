@@ -1,3 +1,4 @@
 *.pyc
 shapefiles/*
+!shapefiles/*.md
 html/json/*.json
