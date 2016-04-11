@@ -46,7 +46,9 @@ class Database(object):
         f = fhrs_table
 
         cur = self.connection.cursor()
-        cur.execute('drop view if exists ' + view_name + ' cascade\n')
+        cur.execute('drop view if exists ' + view_name + ' cascade')
+        self.connection.commit()
+
         statement = ('create view ' + view_name + ' as\n' +
             'select ' + o + '."name" as osm_name, ' + f + '."BusinessName" as fhrs_name,\n' +
             'case when ' + o + '."fhrs:id" is not null and ' + f + '."FHRSID" is not null then \'matched\'\n'
@@ -76,6 +78,7 @@ class Database(object):
 
         cur = self.connection.cursor()
         cur.execute('drop view if exists ' + view_name + ' cascade')
+        self.connection.commit()
 
         statement = ('create view ' + view_name + ' as ' +
             'SELECT osm_name, osm_postcode, fhrs_postcode\n'
@@ -108,6 +111,7 @@ class Database(object):
 
         cur = self.connection.cursor()
         cur.execute('drop view if exists ' + view_name + ' cascade')
+        self.connection.commit()
 
         statement = ('create view ' + view_name + ' as ' +
             'SELECT ' + o + '.name AS osm_name, ' + f + '."BusinessName" AS fhrs_name,\n' +
@@ -264,8 +268,11 @@ class OSMDataset(object):
         """
 
         cur = connection.cursor()
-        cur.execute('drop view if exists compare cascade\n')
-        cur.execute('drop table if exists ' + self.table_name + ' cascade\n')
+        cur.execute('drop view if exists compare cascade')
+        connection.commit()
+        cur.execute('drop table if exists ' + self.table_name + ' cascade')
+        connection.commit()
+
         statement = 'create table ' + self.table_name + '\n'
         # N.B. field names case sensitive because surrounded by ""
         statement += '(id BIGINT, geog GEOGRAPHY(POINT, 4326), type CHAR(8),\n'
@@ -413,10 +420,8 @@ class FHRSDataset(object):
                                  {'name': 'AddressLine2', 'format': 'VARCHAR(100)'},
                                  {'name': 'AddressLine3', 'format': 'VARCHAR(100)'},
                                  {'name': 'AddressLine4', 'format': 'VARCHAR(100)'},
-                                 {'name': 'PostCode', 'format': 'CHAR(10)'},
-                                 {'name': 'LocalAuthorityCode', 'format': 'SMALLINT'}],
-                 auth_field_list=[{'name': 'LocalAuthorityIdCode', 'format': 'SMALLINT'},
-                                  {'name': 'Name', 'format': 'VARCHAR(100)'},
+                                 {'name': 'PostCode', 'format': 'CHAR(10)'}],
+                 auth_field_list=[{'name': 'Name', 'format': 'VARCHAR(100)'},
                                   {'name': 'RegionName', 'format': 'VARCHAR(100)'}],
                  est_table_name='fhrs_establishments', auth_table_name='fhrs_authorities'):
         """Constructor
@@ -469,11 +474,12 @@ class FHRSDataset(object):
         """
 
         cur = connection.cursor()
-        cur.execute('drop view if exists compare cascade')
         cur.execute('drop table if exists ' + self.auth_table_name + ' cascade')
-        statement = 'create table ' + self.auth_table_name + ' '
+        connection.commit()
+
         # N.B. field names case sensitive because surrounded by ""
-        statement += '("LocalAuthorityId" SMALLINT, '
+        statement = ('create table ' + self.auth_table_name + ' ' +
+                     '("LocalAuthorityId" SMALLINT PRIMARY KEY, "LocalAuthorityIdCode" SMALLINT UNIQUE,\n')
         for this_field in self.auth_field_list:
             statement += '"' + this_field['name'] + '" ' + this_field['format']
             if this_field != self.auth_field_list[-1]: # i.e. not the last field in the list
@@ -490,16 +496,18 @@ class FHRSDataset(object):
         """
 
         cur = connection.cursor()
-        cur.execute('drop view if exists compare cascade')
         cur.execute('drop table if exists ' + self.est_table_name + ' cascade')
-        statement = 'create table ' + self.est_table_name + ' '
+        connection.commit()
+
         # N.B. field names case sensitive because surrounded by ""
-        statement += '("FHRSID" INT, geog GEOGRAPHY(POINT, 4326), '
+        statement = ('create table ' + self.est_table_name + ' '
+                     '("FHRSID" INT PRIMARY KEY, geog GEOGRAPHY(POINT, 4326),\n' +
+                     '"LocalAuthorityCode" SMALLINT REFERENCES ' +
+                     self.auth_table_name + '("LocalAuthorityIdCode")\n')
         for this_field in self.est_field_list:
-            statement += '"' + this_field['name'] + '" ' + this_field['format']
-            if this_field != self.est_field_list[-1]: # i.e. not the last field in the list
-                statement += ', '
+            statement += ', "' + this_field['name'] + '" ' + this_field['format']
         statement += ')'
+
         cur.execute(statement)
         connection.commit()
 
@@ -517,8 +525,9 @@ class FHRSDataset(object):
             # need to keep it in order so we can write it to the database
             record = OrderedDict()
 
-            # put FHRSID and lat/lon into record dict
+            # put LocalAuthorityId and LocalAuthorityIdCode into record dict
             record['LocalAuthorityId'] = auth.find(self.xmlns + 'LocalAuthorityId').text
+            record['LocalAuthorityIdCode'] = auth.find(self.xmlns + 'LocalAuthorityIdCode').text
 
             # start with this record's other fields set to None
             for this_field in self.auth_field_list:
@@ -567,7 +576,7 @@ class FHRSDataset(object):
             # need to keep it in order so we can write it to the database
             record = OrderedDict()
 
-            # put FHRSID and lat/lon into record dict
+            # put FHRSID, position and LocalAuthorityCode into record dict
             record['FHRSID'] = est.find(self.xmlns + 'FHRSID').text
             record['geog'] = None
             geocode = est.find(self.xmlns + 'geocode')
@@ -576,6 +585,7 @@ class FHRSDataset(object):
             if lon is not None and lat is not None:
                 record['geog'] = ("ST_GeogFromText('SRID=4326;POINT(" +
                                   str(lon) + " " + str(lat) + ")')")
+            record['LocalAuthorityCode'] = est.find(self.xmlns + 'LocalAuthorityCode').text
 
             # start with this record's other fields set to None
             for this_field in self.est_field_list:
