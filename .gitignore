@@ -1,2 +1,3 @@
-*.json
 *.pyc
+shapefiles/*
+html/json/*.json

@@ -33,7 +33,13 @@
             fillOpacity: 0.5
         }
 
-        $.getJSON("./suggest_matches.json", function(data) {
+        var district_id = '182';
+        if (location.search.substr(1)) {
+            var district_id = location.search.substr(1);
+        }
+        var jsonfile = "./json/suggest-matches-" + district_id + ".json";
+
+        $.getJSON(jsonfile, function(data) {
             var markerLayer = L.geoJson(data, {
                 pointToLayer: function (feature, latlng) {
                     return L.circleMarker(latlng, geojsonMarkerOptions);
