@@ -30,6 +30,104 @@ class Database(object):
         """Create a database connection"""
         self.connection = psycopg2.connect(database=self.dbname)
         return self.connection
+    
+    def add_fhrs_districts(self, fhrs_table='fhrs_establishments',
+                           districts_table='districts', district_id_col='gid'):
+        """(Re-)add district_id columns to FHRS establishments table and fill
+        with the ID of the district in which the FHRS establishment is located.
+        """
+        
+        cur = self.connection.cursor()
+        
+        # (re-)add column to FHRS establishments table
+        try:
+            cur.execute('ALTER TABLE ' + fhrs_table + '\n' +
+                        'DROP COLUMN IF EXISTS district_id\n')
+            cur.execute('ALTER TABLE ' + fhrs_table + '\n' +
+                        'ADD COLUMN district_id SMALLINT\n'
+                        'REFERENCES ' + districts_table + '(' + district_id_col + ')')
+        except psycopg2.ProgrammingError:
+            self.connection.rollback()
+            print "Could not drop or add district_id column to table " + fhrs_table + "."
+            print ("Does the " + districts_table + " table exist and contain the " +
+                   district_id_col + " column?")
+            return False
+        # N.B. not committed yet in case next stage fails
+            
+        # get matching district ID for each establishment
+        query = ('SELECT "FHRSID", ' + district_id_col + ' as dist_id ' +
+                 'FROM ' + fhrs_table + ' fhrs\n' +
+                 'LEFT JOIN ' + districts_table + ' dist\n'
+                 'ON ST_Contains(dist.geom, fhrs.geog::geometry)\n' +
+                 'WHERE fhrs.geog IS NOT NULL')
+        cur.execute(query)
+
+        # update each FHRS establishment with its district ID
+        for est in cur.fetchall():
+            fhrsid, dist_id = est
+            statement = ('UPDATE ' + fhrs_table + ' SET district_id = %s\n'
+                         'WHERE "FHRSID" = %s')
+            values = (dist_id, fhrsid)
+            try:
+                cur.execute(statement, values)
+            except psycopg2.ProgrammingError:
+                self.connection.rollback()
+                print "Couldn't update district_id column in " + fhrs_table + " table."
+                print "SQL statement and values for last attempted execute:"
+                print statement, values
+                return False
+        
+        self.connection.commit()
+        return True
+
+    def add_osm_districts(self, osm_table='osm', districts_table='districts',
+                          district_id_col='gid'):
+        """(Re-)add district_id columns to OSM table and fill with the ID of
+        the district in which the OSM entity is located.
+        """
+        
+        cur = self.connection.cursor()
+        
+        # (re-)add column to OSM table
+        try:
+            cur.execute('ALTER TABLE ' + osm_table + '\n' +
+                        'DROP COLUMN IF EXISTS district_id\n')
+            cur.execute('ALTER TABLE ' + osm_table + '\n' +
+                        'ADD COLUMN district_id SMALLINT\n'
+                        'REFERENCES ' + districts_table + '(' + district_id_col + ')')
+        except psycopg2.ProgrammingError:
+            self.connection.rollback()
+            print "Could not drop or add district_id column to table " + osm_table + "."
+            print ("Does the " + districts_table + " table exist and contain the " +
+                   district_id_col + " column?")
+            return False
+        # N.B. not committed yet in case next stage fails
+            
+        # get matching district ID for each establishment
+        query = ('SELECT id, type, ' + district_id_col + ' as dist_id ' +
+                 'FROM ' + osm_table + ' osm\n' +
+                 'LEFT JOIN ' + districts_table + ' dist\n'
+                 'ON ST_Contains(dist.geom, osm.geog::geometry)\n' +
+                 'WHERE osm.geog IS NOT NULL')
+        cur.execute(query)
+
+        # update each OSM entity with its district ID
+        for est in cur.fetchall():
+            osm_id, osm_type, dist_id = est
+            statement = ('UPDATE ' + osm_table + ' SET district_id = %s\n'
+                         'WHERE id = %s AND type = %s')
+            values = (dist_id, osm_id, osm_type)
+            try:
+                cur.execute(statement, values)
+            except psycopg2.ProgrammingError:
+                self.connection.rollback()
+                print "Couldn't update district_id column in " + osm_table + " table."
+                print "SQL statement and values for last attempted execute:"
+                print statement, values
+                return False
+        
+        self.connection.commit()
+        return True
 
     def create_comparison_view(self, view_name='compare',
                                osm_table='osm', fhrs_table='fhrs_establishments'):
