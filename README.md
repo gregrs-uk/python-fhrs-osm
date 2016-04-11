@@ -1,5 +1,5 @@
-# python-fhrs-osm
-Python tools for downloading and comparing Food Hygeine Rating Scheme (FHRS) and OpenStreetMap (OSM) data and finding possible matches between it, together with Leaflet slippy maps for visualising the data. OSM ways are simplified to a single point at the center of the way.
+# [python-fhrs-osm](http://github.com/gregrs-uk/python-fhrs-osm)
+Python tools for downloading and comparing Food Hygiene Rating Scheme (FHRS) and OpenStreetMap (OSM) data and finding possible matches between it, together with Leaflet slippy maps for visualising the data. OSM ways are simplified to a single point at the center of the way.
 
 ## Features
 * Download specific OpenStreetMap and FHRS data using a modified version of overpy and the FHRS API and parse it into a PostgreSQL/PostGIS database
@@ -51,6 +51,6 @@ Clicking on a point shows links to the OSM node/way web page and the FHRS establ
 
 ## Copyright
 
-Copyright &copy; gregrs-uk 2016, published under the GNU GPL v3.0
+Copyright &copy; [gregrs-uk](http://github.com/gregrs-uk/) 2016, published under the GNU GPL v3.0
 
-Modified version of [overpy](http://github.com/DinoTools/python-overpy) contained in `overpy_mod` directory is copyright &copy; 2014 PhiBo (DinoTools), published under the MIT licence
+Modified version of [overpy](http://github.com/DinoTools/python-overpy) contained in `overpy_mod` directory is copyright &copy; 2014 PhiBo ([DinoTools](http://github.com/DinoTools/)), published under the MIT licence
