@@ -16,8 +16,8 @@ print "Querying database for authority IDs"
 # remove region_name argument below to get authorities in all regions
 fhrs_authorities = fhrs.get_authorities(connection=con, region_name='West Midlands')
 
-# comment out line below to get data for all authorities, not just Rugby
-fhrs_authorities = [371, 375, 373]
+# comment out line below to get data for all authorities, not just Rugby & Warwick
+fhrs_authorities = [371, 373]
 
 print "Creating FHRS establishment database table"
 fhrs.create_establishment_table(connection=con)
