@@ -17,7 +17,7 @@ print "Querying database for authority IDs"
 fhrs_authorities = fhrs.get_authorities(connection=con, region_name='West Midlands')
 
 # comment out line below to get data for all authorities, not just Rugby
-fhrs_authorities = [371]
+fhrs_authorities = [371, 375, 373]
 
 print "Creating FHRS establishment database table"
 fhrs.create_establishment_table(connection=con)
@@ -39,11 +39,3 @@ print "Running Overpass query"
 result = osm.run_overpass_query(bbox=fhrs_bbox)
 print "Writing OSM data to database"
 osm.write_result_nodes_and_ways(result=result, connection=con)
-
-# create database views
-print "Creating database view for data comparison"
-db.create_comparison_view()
-print "Creating database view for postcode mismatches"
-db.create_postcode_mismatch_view()
-print "Creating database view to suggest FHRS/OSM matches"
-db.create_suggest_matches_view()

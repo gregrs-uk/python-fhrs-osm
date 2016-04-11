@@ -42,7 +42,7 @@ class Database(object):
         # (re-)add column to FHRS establishments table
         try:
             cur.execute('ALTER TABLE ' + fhrs_table + '\n' +
-                        'DROP COLUMN IF EXISTS district_id\n')
+                        'DROP COLUMN IF EXISTS district_id CASCADE\n')
             cur.execute('ALTER TABLE ' + fhrs_table + '\n' +
                         'ADD COLUMN district_id SMALLINT\n'
                         'REFERENCES ' + districts_table + '(' + district_id_col + ')')
@@ -91,7 +91,7 @@ class Database(object):
         # (re-)add column to OSM table
         try:
             cur.execute('ALTER TABLE ' + osm_table + '\n' +
-                        'DROP COLUMN IF EXISTS district_id\n')
+                        'DROP COLUMN IF EXISTS district_id CASCADE\n')
             cur.execute('ALTER TABLE ' + osm_table + '\n' +
                         'ADD COLUMN district_id SMALLINT\n'
                         'REFERENCES ' + districts_table + '(' + district_id_col + ')')
@@ -129,8 +129,8 @@ class Database(object):
         self.connection.commit()
         return True
 
-    def create_comparison_view(self, view_name='compare',
-                               osm_table='osm', fhrs_table='fhrs_establishments'):
+    def create_comparison_view(self, view_name='compare', osm_table='osm',
+                               fhrs_table='fhrs_establishments'):
         """(Re)create database view to compare OSM and FHRS data. Drop any
         dependent views first.
 
@@ -156,7 +156,8 @@ class Database(object):
             'end as status,\n' +
             f + '."PostCode" as fhrs_postcode, ' + o + '."addr:postcode" as osm_postcode,\n' +
             o + '."geog" as osm_geog, ' + f + '."geog" as fhrs_geog,\n' +
-            f + '."FHRSID"\n' +
+            f + '."FHRSID",\n' +
+            o + '.district_id as osm_district_id, ' + f + '.district_id as fhrs_district_id\n' +
             'from ' + f + '\n' +
             'full outer join ' + o + ' on ' + f + '."FHRSID" = ' + o + '."fhrs:id"\n' +
             'where coalesce(' + o + '.geog, ' + f + '.geog) is not null')
@@ -217,7 +218,8 @@ class Database(object):
             f + '."AddressLine1", ' + f + '."AddressLine2", \n' +
             f + '."AddressLine3", ' + f + '."AddressLine4", ' + f + '."PostCode", \n' +
             'ST_Distance(' + o + '.geog, ' + f + '.geog) AS distance_metres,\n' +
-            o + '.geog AS osm_geog, ' + f + '.geog AS fhrs_geog\n' +
+            o + '.geog AS osm_geog, ' + f + '.geog AS fhrs_geog,\n' +
+            o + '.district_id AS osm_district_id, ' + f + '.district_id AS fhrs_district_id\n' +
             'FROM ' + o + '\n' +
             'INNER JOIN ' + fhrs_table + '\n' +
             'ON (' + f + '."BusinessName" LIKE \'%\' || ' + o + '.name || \'%\'\n' +
@@ -230,12 +232,13 @@ class Database(object):
         cur.execute(statement)
         self.connection.commit()
 
-    def get_overview_geojson(self, view_name='compare'):
-        """Create GeoJSON-formatted string using comparison view. This can be
-        used to display data on a Leaflet slippy map. Establishments with the
-        same lat/lon are aggregated into a list.
+    def get_overview_geojson(self, view_name='compare', district_id=182):
+        """Create GeoJSON-formatted string for a single district using
+        comparison view. This can be used to display data on a Leaflet slippy
+        map. Establishments with the same lat/lon are aggregated into a list.
 
         view_name (string): name of view from which to gather data
+        district_id (integer): gid of district to use for filtering
         Returns string
         """
 
@@ -269,6 +272,7 @@ class Database(object):
         "           ) as l\n" +
         "       )) as properties\n" +
         "       FROM " + view_name + " as lg\n" +
+        "       WHERE COALESCE(osm_district_id, fhrs_district_id) = " + str(district_id) + "\n" +
         "       GROUP BY coalesce(osm_geog, fhrs_geog)\n" +
         "   ) as f\n" +
         ") as fc;")
@@ -276,11 +280,13 @@ class Database(object):
         cur.execute(query)
         return cur.fetchone()[0]
 
-    def get_suggest_matches_geojson(self, view_name='suggest_matches'):
-        """Create GeoJSON-formatted string using the suggest matches view. This
-        can be used to display data on a Leaflet slippy map.
+    def get_suggest_matches_geojson(self, view_name='suggest_matches', district_id=182):
+        """Create GeoJSON-formatted string for a single district using the
+        suggest matches view. This can be used to display data on a Leaflet
+        slippy map.
 
         view_name (string): name of view from which to gather data
+        district_id (integer): gid of district to use for filtering
         Returns string
         """
 
@@ -320,6 +326,7 @@ class Database(object):
         "           ) as l\n" +
         "       )) as properties\n" +
         "       FROM " + view_name + " as lg\n" +
+        "       WHERE osm_district_id = " + str(district_id) + "\n" +
         "   ) as f\n" +
         ") as fc;")
 
@@ -387,7 +394,7 @@ class OSMDataset(object):
         Returns overpy.Result object
         """
         # header elements
-        query = '[out:xml][timeout:25]'
+        query = '[out:xml][timeout:60]'
         query += '[bbox:'
         query += ','.join(map(str, bbox)) # comma separated list of bbox co-ordinates
         query += '];\n'
