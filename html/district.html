@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title>FHRS overview map</title>
+	<title>FHRS</title>
 	<meta charset="utf-8" />
 
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,13 +9,15 @@
 	<link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.css" />
 </head>
 <body>
-	<div id="mapid" style="width: 800px; height: 600px"></div>
+
+    <h2>Overview map</h2>
+	<div id="overview_map" style="width: 800px; height: 600px"></div>
 
 	<script src="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.js"></script>
 	<script src="http://code.jquery.com/jquery-2.1.0.min.js"></script>
 	<script>
 
-		var mymap = L.map('mapid').setView([52.372, -1.263], 16);
+		var mymap = L.map('overview_map').setView([52.372, -1.263], 16);
 
 		L.tileLayer('http://a.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 			maxZoom: 18,
@@ -61,6 +63,53 @@
                         // all matched
                         return {fillColor: "#0f0"};
                     }
+                }
+            }).addTo(mymap);
+            mymap.fitBounds(markerLayer.getBounds());
+        });
+
+	</script>
+	
+	
+	<h2>Suggested matches map</h2>
+	<div id="suggest_matches_map" style="width: 800px; height: 600px"></div>
+
+	<script src="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.js"></script>
+	<script src="http://code.jquery.com/jquery-2.1.0.min.js"></script>
+	<script>
+
+		var mymap = L.map('suggest_matches_map').setView([52.372, -1.263], 16);
+
+		L.tileLayer('http://a.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+			maxZoom: 18,
+			attribution: '&copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ' +
+				'Contains <a href="http://www.ordnancesurvey.co.uk">Ordnance Survey</a> and ' +
+				'<a href="http://ratings.food.gov.uk/open-data/">Food Hygiene Rating Scheme</a> ' +
+				'data &copy Crown copyright and database right'
+		}).addTo(mymap);
+
+        var geojsonMarkerOptions = {
+            radius: 5,
+            color: "#000",
+            fillColor: "#ff0",
+            weight: 1,
+            opacity: 1,
+            fillOpacity: 0.5
+        }
+
+        var district_id = '182';
+        if (location.search.substr(1)) {
+            var district_id = location.search.substr(1);
+        }
+        var jsonfile = "./json/suggest-matches-" + district_id + ".json";
+
+        $.getJSON(jsonfile, function(data) {
+            var markerLayer = L.geoJson(data, {
+                pointToLayer: function (feature, latlng) {
+                    return L.circleMarker(latlng, geojsonMarkerOptions);
+                },
+                onEachFeature: function (feature, layer) {
+                    layer.bindPopup(feature.properties.text);
                 }
             }).addTo(mymap);
             mymap.fitBounds(markerLayer.getBounds());
