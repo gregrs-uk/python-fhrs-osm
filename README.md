@@ -31,7 +31,7 @@ place the four `district_borough_unitary_region.*` files in the `shapefiles` dir
     * Run `python create_output_data.py` to create HTML and GeoJSON files for each district which contains data
 
 ## Usage
-* Open `html/district-n.html` in a browser to show maps (see below) for a particular district
+* Open `html/index.html` in a browser to show a list of districts. Click on a district to show a page with maps (see below) for a particular district
 * The `compare` and `suggest_matches` database views can be used to compare FHRS with OSM data and suggest matching FHRS establishments for OSM entities. (These are used to create GeoJSON files for the slippy maps)
 * The `postcode_mismatch` database view can be used to list OSM entities with an `fhrs:id` tag for which the FHRS postcode does not match the OSM one
 
