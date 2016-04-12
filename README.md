@@ -5,7 +5,7 @@ Python tools for downloading and comparing Food Hygiene Rating Scheme (FHRS) and
 * Download specific OpenStreetMap and FHRS data using a modified version of overpy and the FHRS API and parse it into a PostgreSQL/PostGIS database
 * Use database views to compare OpenStreetMap and FHRS data and find anomalies
 * Use a database view to find possible matches between OSM nodes/ways and FHRS establishments, based on proximity and similarity of names
-* Export GeoJSON files to use in Leaflet slippy maps, allowing users to visualise OSM/FHRS data as well as to review possible matches between FHRS and OSM data and import useful tags into JOSM
+* Export HTML pages with statistics and Leaflet slippy maps, allowing users to visualise OSM/FHRS data as well as to review possible matches between FHRS and OSM data and import useful tags into JOSM
 
 ## Requirements
 * Tested using Python 2.7 on Ubuntu and Mac OS X
@@ -31,7 +31,7 @@ place the four `district_borough_unitary_region.*` files in the `shapefiles` dir
     * Run `python create_output_data.py` to create HTML and GeoJSON files for each district which contains data
 
 ## Usage
-* Open `html/index.html` in a browser to show a list of districts. Click on a district to show a page with maps (see below) for a particular district
+* Open `html/index.html` in a browser to show a list of districts. Click on a district to show a page with statistics and maps (see below) for a particular district
 * The `compare` and `suggest_matches` database views can be used to compare FHRS with OSM data and suggest matching FHRS establishments for OSM entities. (These are used to create GeoJSON files for the slippy maps)
 * The `postcode_mismatch` database view can be used to list OSM entities with an `fhrs:id` tag for which the FHRS postcode does not match the OSM one
 
