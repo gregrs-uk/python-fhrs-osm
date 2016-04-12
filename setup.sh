@@ -7,7 +7,8 @@ then
     createdb fhrs && \
     psql -d fhrs -c "create extension postgis; create extension fuzzystrmatch;" && \
     ./import_bline_districts.sh && \
-    python get_data.py && \
+    python get_fhrs_data.py && \
+		python get_osm_data.py && \
     python process_data.py && \
 		if [ ! -d "./html/json" ]
 		then

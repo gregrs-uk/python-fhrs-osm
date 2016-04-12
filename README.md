@@ -20,8 +20,11 @@ place the four `district_borough_unitary_region.*` files in the `shapefiles` dir
     * (Re)create `fhrs` PostgreSQL database
     * Enable PostGIS and fuzzystrmatch extensions
     * Import district boundaries from shapefiles
-    * Run `python get_data.py` to download OpenStreetMap and FHRS data to the PostgreSQL database
-        * By default, data for the Rugby and Warwick areas are downloaded, but this can be altered in `get_data.py`
+    * Run `python get_fhrs_data.py` to download FHRS data to the PostgreSQL database
+        * By default, data for the Rugby and Warwick areas are downloaded, but this can be altered in `get_fhrs_data.py`
+        * FHRS data is always downloaded one authority at a time
+    * Run `python get_osm_data.py` to download OpenStreetMap data to the PostgreSQL database
+        * By default, data is downloaded to match the bounding box of the FHRS data present in the database, but this can be altered in `get_osm_data.py`
         * FHRS data is always downloaded one authority at a time
         * The OSM tag/value pairs to query can also be easily modified. Please see the docstrings in `fhrs_osm/__init__.py` for details)
     * Run `python process_data.py` to compute which district FHRS establishments and OSM entities are in and to create the database views
