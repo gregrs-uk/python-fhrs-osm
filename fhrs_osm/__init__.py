@@ -407,14 +407,14 @@ class OSMDataset(object):
         cur.execute(statement)
         connection.commit()
 
-    def run_overpass_query(self, bbox=[52.314,-1.356,52.412,-1.178]):
+    def run_overpass_query(self, bbox=[52.314,-1.356,52.412,-1.178], timeout=180):
         """Run Overpass API query based on bounding box and tag list supplied.
 
         bbox (list of 4 decimals): bounding box co-ordinates [S,W,N,E]
         Returns overpy.Result object
         """
         # header elements
-        query = '[out:xml][timeout:60]'
+        query = '[out:xml][timeout:' + str(timeout) + ']'
         query += '[bbox:'
         query += ','.join(map(str, bbox)) # comma separated list of bbox co-ordinates
         query += '];\n'
