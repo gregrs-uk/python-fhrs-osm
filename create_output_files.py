@@ -137,3 +137,37 @@ for dist in districts:
     f = open(filename, 'w')
     f.write(html)
     f.close
+
+print "Creating index HTML file"
+    
+html = ("""
+<!DOCTYPE html>
+<html>
+<head>
+	<title>FHRS/OSM comparison</title>
+	<meta charset="utf-8" />
+
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+	<link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.css" />
+</head>
+<body>
+
+    <h1>FHRS/OSM comparison</h1>
+    
+    <h2>Districts</h2>
+    <ul>
+    """)
+
+for dist in districts:
+    html += ('<li><a href="district-' + str(dist['id']) + '.html">' + dist['name'] + '</a></li>')
+
+html += ("""
+    </ul>
+</body>
+</html>
+""")
+
+f = open('html/index.html', 'w')
+f.write(html)
+f.close
