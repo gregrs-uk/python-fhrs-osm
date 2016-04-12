@@ -30,15 +30,15 @@ class Database(object):
         """Create a database connection"""
         self.connection = psycopg2.connect(database=self.dbname)
         return self.connection
-    
+
     def add_fhrs_districts(self, fhrs_table='fhrs_establishments',
                            districts_table='districts', district_id_col='gid'):
         """(Re-)add district_id columns to FHRS establishments table and fill
         with the ID of the district in which the FHRS establishment is located.
         """
-        
+
         cur = self.connection.cursor()
-        
+
         # (re-)add column to FHRS establishments table
         try:
             cur.execute('ALTER TABLE ' + fhrs_table + '\n' +
@@ -53,7 +53,7 @@ class Database(object):
                    district_id_col + " column?")
             return False
         # N.B. not committed yet in case next stage fails
-            
+
         # get matching district ID for each establishment
         query = ('SELECT "FHRSID", ' + district_id_col + ' as dist_id ' +
                  'FROM ' + fhrs_table + ' fhrs\n' +
@@ -76,7 +76,7 @@ class Database(object):
                 print "SQL statement and values for last attempted execute:"
                 print statement, values
                 return False
-        
+
         self.connection.commit()
         return True
 
@@ -85,9 +85,9 @@ class Database(object):
         """(Re-)add district_id columns to OSM table and fill with the ID of
         the district in which the OSM entity is located.
         """
-        
+
         cur = self.connection.cursor()
-        
+
         # (re-)add column to OSM table
         try:
             cur.execute('ALTER TABLE ' + osm_table + '\n' +
@@ -102,7 +102,7 @@ class Database(object):
                    district_id_col + " column?")
             return False
         # N.B. not committed yet in case next stage fails
-            
+
         # get matching district ID for each establishment
         query = ('SELECT id, type, ' + district_id_col + ' as dist_id ' +
                  'FROM ' + osm_table + ' osm\n' +
@@ -125,10 +125,10 @@ class Database(object):
                 print "SQL statement and values for last attempted execute:"
                 print statement, values
                 return False
-        
+
         self.connection.commit()
         return True
-    
+
     def get_inhabited_districts(self, fhrs_table='fhrs_establishments', osm_table='osm'):
         """Return a list of Boundary Line district IDs for which there is some
         data present in the database.
@@ -140,14 +140,14 @@ class Database(object):
         cur = self.connection.cursor()
 
         query = ('select distinct coalesce(fhrs.district_id, osm.district_id) as dist_id\n' +
-                 'from ' + fhrs_table + ' fhrs, ' + osm_table + ' osm\n' + 
+                 'from ' + fhrs_table + ' fhrs, ' + osm_table + ' osm\n' +
                  'order by dist_id')
         cur.execute(query)
 
         district_ids = []
         for dist in cur.fetchall():
             district_ids.append(dist[0])
-        return district_ids    
+        return district_ids
 
     def create_comparison_view(self, view_name='compare', osm_table='osm',
                                fhrs_table='fhrs_establishments'):
