@@ -1,4 +1,5 @@
 from fhrs_osm import *
+from datetime import datetime
 
 db = Database()
 db.connect()
@@ -6,8 +7,9 @@ db.connect()
 print "Getting list of districts which contain some data"
 districts = db.get_inhabited_districts()
 
-print "Creating GeoJSON and HTML files for each district"
 for dist in districts:
+    print "Creating GeoJSON and HTML files for " + dist['name']
+
     filename = 'html/json/overview-' + str(dist['id']) + '.json'
     f = open(filename, 'w')
     f.write(db.get_overview_geojson(district_id=dist['id']))
@@ -17,6 +19,8 @@ for dist in districts:
     f = open(filename, 'w')
     f.write(db.get_suggest_matches_geojson(district_id=dist['id']))
     f.close
+
+    stats = db.get_district_stats(dist['id'])
 
     html = ("""
 <!DOCTYPE html>
@@ -28,11 +32,42 @@ for dist in districts:
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 	<link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.css" />
+
+    <style>
+        table, th, td {
+            border: 1px solid black;
+            border-collapse: collapse;
+        }
+    </style>
 </head>
 <body>
 
     <h1>FHRS/OSM comparison</h1>
     <h2>""" + dist['name'] + """</h2>    
+
+	<h3>District statistics</h3>
+	<table>
+	    <tr>
+	        <td>Total number of FHRS establishments</td>
+	        <td>""" + str(stats['total_FHRS']) + """</td>
+	    </tr>
+	    <tr>
+	        <td style='color: #0f0;'>OSM nodes/ways with valid fhrs:id</td>
+	        <td>""" + str(stats['matched']) + """</td>
+	    </tr>
+	    <tr>
+	        <td style='color: #f00;'>OSM nodes/ways with invalid fhrs:id</td>
+	        <td>""" + str(stats['mismatch']) + """</td>
+	    </tr>
+	    <tr>
+	        <td style='color: #00f;'>FHRS establishments with no matching OSM node/way</td>
+	        <td>""" + str(stats['FHRS']) + """</td>
+	    </tr>
+	    <tr>
+	        <td style='color: #0f0;'>Percentage of FHRS establishments matched</td>
+	        <td>""" + '%.1f' % stats['FHRS_matched_pc'] + """%</td>
+	    </tr>
+	</table>
 
     <h3>Overview</h3>
 	<div id="overview_map" style="width: 800px; height: 600px"></div>
@@ -40,6 +75,9 @@ for dist in districts:
 	<h3>Suggested matches</h3>
 	<div id="suggest_matches_map" style="width: 800px; height: 600px"></div>
 
+	<p>Generated using <a href="https://github.com/gregrs-uk/python-fhrs-osm">""" +
+	"""python-fhrs-osm</a> on """ +
+	datetime.strftime(datetime.now(), '%a %d %b %Y at %H:%M') + """</p>
 
 	<script src="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.js"></script>
 	<script src="http://code.jquery.com/jquery-2.1.0.min.js"></script>

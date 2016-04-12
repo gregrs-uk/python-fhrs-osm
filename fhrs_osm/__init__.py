@@ -361,6 +361,41 @@ class Database(object):
         cur.execute(query)
         return cur.fetchone()[0]
 
+    def get_district_stats(self, district_id=182):
+        """Get statistics regarding the matching of FHRS establishments and
+        OSM entities for the specified district.
+
+        district_id (integer): Boundary Line district ID
+        Returns dict
+        """
+
+        cur = self.connection.cursor()
+
+        query = ('select status, count(status) from compare\n' +
+                 'where coalesce (osm_district_id, fhrs_district_id) = %s\n' +
+                 'group by status')
+        values = (district_id,)
+        cur.execute(query, values)
+
+        # default values
+        s = {'OSM': 0, 'FHRS': 0, 'matched': 0, 'mismatch': 0}
+        
+        # set values in dict
+        for row in cur.fetchall():
+            s[row[0]] = row[1]
+
+        s['total_OSM'] = s['OSM'] + s['matched'] + s['mismatch']
+        s['total_FHRS'] = s['FHRS'] + s['matched']
+
+        # avoid dividing by zero
+        if s['total_FHRS'] != 0:
+            # cast to float to prevent result of division being rounded to integer
+            s['FHRS_matched_pc'] = float(s['matched']) / s['total_FHRS'] * 100
+        else:
+            s['FHRS_matched_pc'] = float(0)
+
+        return s
+
 
 class OSMDataset(object):
     """A class which represents the OSM data we are using."""
