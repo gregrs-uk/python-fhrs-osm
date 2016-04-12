@@ -46,6 +46,17 @@ for dist in districts:
 
 	<script>
 
+        // defaults for both maps
+		var geojsonMarkerOptions = {
+            radius: 5,
+            color: "#000",
+            fillColor: "#ff0",
+            weight: 1,
+            opacity: 1,
+            fillOpacity: 0.5
+        }
+
+
 		var overview_map = L.map('overview_map').setView([52.372, -1.263], 16);
 
 		L.tileLayer('http://a.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -56,18 +67,10 @@ for dist in districts:
 				'data &copy Crown copyright and database right'
 		}).addTo(overview_map);
 
-        var geojsonMarkerOptions = {
-            radius: 5,
-            color: "#000",
-            weight: 1,
-            opacity: 1,
-            fillOpacity: 0.5
-        }
+        var overview_json = './json/overview-""" + str(dist['id']) + """.json';
 
-        var jsonfile = './json/overview-""" + str(dist['id']) + """.json';
-
-        $.getJSON(jsonfile, function(data) {
-            var markerLayer = L.geoJson(data, {
+        $.getJSON(overview_json, function(data) {
+            var overviewMarkerLayer = L.geoJson(data, {
                 pointToLayer: function (feature, latlng) {
                     return L.circleMarker(latlng, geojsonMarkerOptions);
                 },
@@ -90,7 +93,7 @@ for dist in districts:
                     }
                 }
             }).addTo(overview_map);
-            overview_map.fitBounds(markerLayer.getBounds());
+            overview_map.fitBounds(overviewMarkerLayer.getBounds());
         });
         
         
@@ -104,19 +107,10 @@ for dist in districts:
 				'data &copy Crown copyright and database right'
 		}).addTo(suggest_matches_map);
 
-        var geojsonMarkerOptions = {
-            radius: 5,
-            color: "#000",
-            fillColor: "#ff0",
-            weight: 1,
-            opacity: 1,
-            fillOpacity: 0.5
-        }
+        var suggest_matches_json = './json/suggest-matches-""" + str(dist['id']) + """.json';
 
-        var jsonfile = './json/overview-""" + str(dist['id']) + """.json';
-
-        $.getJSON(jsonfile, function(data) {
-            var markerLayer = L.geoJson(data, {
+        $.getJSON(suggest_matches_json, function(data) {
+            var matchesMarkerLayer = L.geoJson(data, {
                 pointToLayer: function (feature, latlng) {
                     return L.circleMarker(latlng, geojsonMarkerOptions);
                 },
@@ -124,7 +118,7 @@ for dist in districts:
                     layer.bindPopup(feature.properties.text);
                 }
             }).addTo(suggest_matches_map);
-            suggest_matches_map.fitBounds(markerLayer.getBounds());
+            suggest_matches_map.fitBounds(matchesMarkerLayer.getBounds());
         });
 
 	</script>
