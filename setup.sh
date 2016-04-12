@@ -10,11 +10,15 @@ then
     python get_fhrs_data.py && \
 		python get_osm_data.py && \
     python process_data.py && \
-		if [ ! -d "./html/json" ]
-		then
-			mkdir ./html/json
-		fi
-    python create_geojsons.py
+	if [ ! -d "./html" ]
+	then
+		mkdir ./html
+	fi
+	if [ ! -d "./html/json" ]
+	then
+		mkdir ./html/json
+	fi
+    python create_output_files.py
 else
 	echo "Can't find the OS Boundary Line shapefiles. Please see"
 	echo "shapefiles/README-shapefiles.md for instructions."

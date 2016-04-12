@@ -28,11 +28,10 @@ place the four `district_borough_unitary_region.*` files in the `shapefiles` dir
         * FHRS data is always downloaded one authority at a time
         * The OSM tag/value pairs to query can also be easily modified. Please see the docstrings in `fhrs_osm/__init__.py` for details)
     * Run `python process_data.py` to compute which district FHRS establishments and OSM entities are in and to create the database views
-    * Run `python create_geojsons.py` to create a GeoJSON file for each district which contains data
+    * Run `python create_output_data.py` to create HTML and GeoJSON files for each district which contains data
 
 ## Usage
-* Open `overview.html` in a browser to visualise the FHRS and OSM data (see below). Adding a question mark followed by the district ID loads data for that district e.g. `overview.html?182`
-* Open `suggest_matches.html` in a browser to see a map which suggests matching FHRS establishments for OSM entities (see below). Adding a question mark followed by the district ID loads data for that district e.g. `suggest_matches.html?182`
+* Open `html/district-n.html` in a browser to show maps (see below) for a particular district
 * The `compare` and `suggest_matches` database views can be used to compare FHRS with OSM data and suggest matching FHRS establishments for OSM entities. (These are used to create GeoJSON files for the slippy maps)
 * The `postcode_mismatch` database view can be used to list OSM entities with an `fhrs:id` tag for which the FHRS postcode does not match the OSM one
 
