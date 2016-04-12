@@ -149,7 +149,7 @@ class Database(object):
                  ') AS district_id\n' +
                  'LEFT JOIN ' + districts_table + ' dist ON district_id = dist.gid\n' +
                  'WHERE district_id IS NOT NULL\n' +
-                 'ORDER BY district_id')
+                 'ORDER BY dist.name')
         cur.execute(query)
 
         districts = []
