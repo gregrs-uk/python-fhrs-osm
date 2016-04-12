@@ -129,25 +129,33 @@ class Database(object):
         self.connection.commit()
         return True
 
-    def get_inhabited_districts(self, fhrs_table='fhrs_establishments', osm_table='osm'):
-        """Return a list of Boundary Line district IDs for which there is some
-        data present in the database.
+    def get_inhabited_districts(self, fhrs_table='fhrs_establishments',
+                                osm_table='osm', districts_table='districts'):
+        """Return a list of dicts of Boundary Line districts for which there is
+        some data present in the database.
 
+        fhrs_table (string): name of FHRS establishments database table
+        osm_table (string): name of OSM database table
         districts_table (string): name of districts database table
-        Returns district IDs as a list of integers
+        Returns list of dicts e.g. {'id': 1, 'name': 'District'}
         """
 
         cur = self.connection.cursor()
 
-        query = ('select distinct coalesce(fhrs.district_id, osm.district_id) as dist_id\n' +
-                 'from ' + fhrs_table + ' fhrs, ' + osm_table + ' osm\n' +
-                 'order by dist_id')
+        query = ('SELECT district_id, dist.name FROM (\n' +
+                 '    SELECT district_id FROM ' + fhrs_table + '\n' +
+                 '    UNION\n' +
+                 '    SELECT district_id FROM ' + osm_table + '\n' +
+                 ') AS district_id\n' +
+                 'LEFT JOIN ' + districts_table + ' dist ON district_id = dist.gid\n' +
+                 'WHERE district_id IS NOT NULL\n' +
+                 'ORDER BY district_id')
         cur.execute(query)
 
-        district_ids = []
+        districts = []
         for dist in cur.fetchall():
-            district_ids.append(dist[0])
-        return district_ids
+            districts.append({'id': dist[0], 'name': dist[1]})
+        return districts
 
     def create_comparison_view(self, view_name='compare', osm_table='osm',
                                fhrs_table='fhrs_establishments'):
