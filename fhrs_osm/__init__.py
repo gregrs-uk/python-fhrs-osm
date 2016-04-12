@@ -546,10 +546,12 @@ class OSMDataset(object):
 
         try:
             cur.execute(statement, values)
-        except psycopg2.DataError:
+        except (psycopg2.DataError, psycopg2.IntegrityError) as e:
             connection.rollback()
-            print "Couldn't insert the following OSM data:"
+            print "\nCouldn't insert the following OSM data:"
             print record
+            print "The reason given was:"
+            print repr(e)
             print "Continuing..."
         else:
             connection.commit()
@@ -725,10 +727,12 @@ class FHRSDataset(object):
 
             try:
                 cur.execute(statement, values)
-            except psycopg2.DataError:
+            except (psycopg2.DataError, psycopg2.IntegrityError) as e:
                 connection.rollback()
-                print "Couldn't insert the following FHRS authority data:"
+                print "\nCouldn't insert the following FHRS authority data:"
                 print record
+                print "The reason given was:"
+                print repr(e)
                 print "Continuing..."
             else:
                 connection.commit()
@@ -786,10 +790,12 @@ class FHRSDataset(object):
 
             try:
                 cur.execute(statement, values)
-            except psycopg2.DataError:
+            except (psycopg2.DataError, psycopg2.IntegrityError) as e:
                 connection.rollback()
-                print "Couldn't insert the following FHRS establishment data:"
+                print "\nCouldn't insert the following FHRS establishment data:"
                 print record
+                print "The reason given was:"
+                print repr(e)
                 print "Continuing..."
             else:
                 connection.commit()
