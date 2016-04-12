@@ -5,8 +5,8 @@ con = db.connect()
 
 fhrs = FHRSDataset()
 
-print 'Calculating geographical extent of FHRS data'
-fhrs_bbox = fhrs.get_bbox(connection=con)
+print 'Calculating geographical extent of FHRS data, ignoring outliers'
+fhrs_bbox = fhrs.get_corrected_bbox(connection=con)
 
 # get OSM data within matching bounding box
 osm = OSMDataset()

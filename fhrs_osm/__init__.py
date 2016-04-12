@@ -806,3 +806,123 @@ class FHRSDataset(object):
 
         # return list of co-ordinates in correct order
         return [s, w, n, e]
+
+    def get_stats(self, connection, column, table, fence_multiplier=3):
+        """Get statistical minimum, maximum, Q1, Q3, interquartile distance
+        and inner/outer fence (based on multiplier provided) for a set of
+        values from a column within a database table.
+        
+        column (string): name of database column
+        table (string): name of database table
+        fence_multiplier (numeric): value to use in calculating fence, usually
+            3 for outer fence and 1.5 for inner fence
+        Returns dict of values
+        """
+
+        cur = connection.cursor()
+        values = OrderedDict()
+
+        query = ('select min(' + column + ') as min\n' +
+	             'from ' + table + '\n' +
+	             'where ' + column + ' is not null')
+        cur.execute(query)
+        values['min'] = cur.fetchone()[0]
+
+        query = ('select max(num) as q1 from (\n' +
+	             '    select ' + column + ' as num\n' +
+	             '    from ' + table + '\n' +
+	             '    where ' + column + ' is not null\n' +
+	             '    order by num asc\n' +
+	             '    limit (\n' +
+	             '        select count(' + column + ')/4\n' +
+	             '        from ' + table + '\n' +
+	             '        where ' + column + ' is not null\n' +
+	             '    )\n' +
+                 ') as num')
+        cur.execute(query)
+        values['Q1'] = cur.fetchone()[0]
+
+        query = ('select max(num) as med from (\n' +
+	             '    select ' + column + ' as num\n' +
+	             '    from ' + table + '\n' +
+	             '    where ' + column + ' is not null\n' +
+	             '    order by num asc\n' +
+	             '    limit (\n' +
+	             '        select count(' + column + ')/2\n' +
+	             '        from ' + table + '\n' +
+	             '        where ' + column + ' is not null\n' +
+	             '    )\n' +
+                 ') as num')
+        cur.execute(query)
+        values['med'] = cur.fetchone()[0]
+
+        query = ('select min(num) as q3 from (\n' +
+	             '    select ' + column + ' as num\n' +
+	             '    from ' + table + '\n' +
+	             '    where ' + column + ' is not null\n' +
+	             '    order by num desc\n' +
+	             '    limit (\n' +
+	             '        select count(' + column + ')/4\n' +
+	             '        from ' + table + '\n' +
+	             '        where ' + column + ' is not null\n' +
+	             '    )\n' +
+                 ') as num')
+        cur.execute(query)
+        values['Q3'] = cur.fetchone()[0]
+
+        query = ('select max(' + column + ') as max\n' +
+	             'from ' + table + '\n' +
+	             'where ' + column + ' is not null')
+        cur.execute(query)
+        values['max'] = cur.fetchone()[0]
+
+        values['iq_range'] = values['Q3'] - values['Q1']
+        values['fence_low'] = values['Q1'] - (values['iq_range'] * fence_multiplier)
+        values['fence_high'] = values['Q3'] + (values['iq_range'] * fence_multiplier)
+
+        return values
+
+    def get_corrected_bbox(self, connection, fence_multiplier=3):
+        """Return a bounding box for FHRS establishments, ignoring outliers.
+
+        Returns list of 4 decimals: bounding box co-ordinates [S,W,N,E]
+        """
+
+        lon = self.get_stats(connection=connection, column='ST_X(geog::geometry)',
+                             table=self.est_table_name,
+                             fence_multiplier=fence_multiplier)
+        lat = self.get_stats(connection=connection, column='ST_Y(geog::geometry)',
+                             table=self.est_table_name,
+                             fence_multiplier=fence_multiplier)
+
+        cur = connection.cursor()
+
+        query = ('select min(ST_Y(geog::geometry)) as min_lat\n' +
+                 'from ' + self.est_table_name + '\n' +
+                 'where geog is not null\n' + 
+                 'and ST_Y(geog::geometry) > ' + str(lat['fence_low']))
+        cur.execute(query)
+        s = cur.fetchone()[0]
+
+        query = ('select min(ST_X(geog::geometry)) as min_lon\n' +
+                 'from ' + self.est_table_name + '\n' +
+                 'where geog is not null\n' + 
+                 'and ST_X(geog::geometry) > ' + str(lon['fence_low']))
+        cur.execute(query)
+        w = cur.fetchone()[0]
+
+        query = ('select max(ST_Y(geog::geometry)) as max_lat\n' +
+                 'from ' + self.est_table_name + '\n' +
+                 'where geog is not null\n' + 
+                 'and ST_Y(geog::geometry) < ' + str(lat['fence_high']))
+        cur.execute(query)
+        n = cur.fetchone()[0]
+
+        query = ('select max(ST_X(geog::geometry)) as max_lon\n' +
+                 'from ' + self.est_table_name + '\n' +
+                 'where geog is not null\n' + 
+                 'and ST_X(geog::geometry) < ' + str(lon['fence_high']))
+        cur.execute(query)
+        e = cur.fetchone()[0]
+
+        return [s,w,n,e]
