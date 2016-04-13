@@ -379,7 +379,7 @@ class Database(object):
 
         # default values
         s = {'OSM': 0, 'FHRS': 0, 'matched': 0, 'mismatch': 0}
-        
+
         # set values in dict
         for row in cur.fetchall():
             s[row[0]] = row[1]
@@ -846,7 +846,7 @@ class FHRSDataset(object):
         """Get statistical minimum, maximum, Q1, Q3, interquartile distance
         and inner/outer fence (based on multiplier provided) for a set of
         values from a column within a database table.
-        
+
         column (string): name of database column
         table (string): name of database table
         fence_multiplier (numeric): value to use in calculating fence, usually
@@ -934,28 +934,28 @@ class FHRSDataset(object):
 
         query = ('select min(ST_Y(geog::geometry)) as min_lat\n' +
                  'from ' + self.est_table_name + '\n' +
-                 'where geog is not null\n' + 
+                 'where geog is not null\n' +
                  'and ST_Y(geog::geometry) > ' + str(lat['fence_low']))
         cur.execute(query)
         s = cur.fetchone()[0]
 
         query = ('select min(ST_X(geog::geometry)) as min_lon\n' +
                  'from ' + self.est_table_name + '\n' +
-                 'where geog is not null\n' + 
+                 'where geog is not null\n' +
                  'and ST_X(geog::geometry) > ' + str(lon['fence_low']))
         cur.execute(query)
         w = cur.fetchone()[0]
 
         query = ('select max(ST_Y(geog::geometry)) as max_lat\n' +
                  'from ' + self.est_table_name + '\n' +
-                 'where geog is not null\n' + 
+                 'where geog is not null\n' +
                  'and ST_Y(geog::geometry) < ' + str(lat['fence_high']))
         cur.execute(query)
         n = cur.fetchone()[0]
 
         query = ('select max(ST_X(geog::geometry)) as max_lon\n' +
                  'from ' + self.est_table_name + '\n' +
-                 'where geog is not null\n' + 
+                 'where geog is not null\n' +
                  'and ST_X(geog::geometry) < ' + str(lon['fence_high']))
         cur.execute(query)
         e = cur.fetchone()[0]
