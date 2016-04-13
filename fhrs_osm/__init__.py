@@ -55,26 +55,26 @@ class Database(object):
         # N.B. not committed yet in case next stage fails
 
         # get matching district ID for each establishment
-        query = ('SELECT "FHRSID", ' + district_id_col + ' as dist_id ' +
-                 'FROM ' + fhrs_table + ' fhrs\n' +
-                 'LEFT JOIN ' + districts_table + ' dist\n'
-                 'ON ST_Contains(dist.geom, fhrs.geog::geometry)\n' +
-                 'WHERE fhrs.geog IS NOT NULL')
-        cur.execute(query)
+        sql = ('SELECT "FHRSID", ' + district_id_col + ' as dist_id ' +
+               'FROM ' + fhrs_table + ' fhrs\n' +
+               'LEFT JOIN ' + districts_table + ' dist\n'
+               'ON ST_Contains(dist.geom, fhrs.geog::geometry)\n' +
+               'WHERE fhrs.geog IS NOT NULL')
+        cur.execute(sql)
 
         # update each FHRS establishment with its district ID
         for est in cur.fetchall():
             fhrsid, dist_id = est
-            statement = ('UPDATE ' + fhrs_table + ' SET district_id = %s\n'
-                         'WHERE "FHRSID" = %s')
+            sql = ('UPDATE ' + fhrs_table + ' SET district_id = %s\n'
+                   'WHERE "FHRSID" = %s')
             values = (dist_id, fhrsid)
             try:
-                cur.execute(statement, values)
+                cur.execute(sql, values)
             except psycopg2.ProgrammingError:
                 self.connection.rollback()
                 print "Couldn't update district_id column in " + fhrs_table + " table."
                 print "SQL statement and values for last attempted execute:"
-                print statement, values
+                print sql, values
                 return False
 
         self.connection.commit()
@@ -104,26 +104,26 @@ class Database(object):
         # N.B. not committed yet in case next stage fails
 
         # get matching district ID for each establishment
-        query = ('SELECT id, type, ' + district_id_col + ' as dist_id ' +
-                 'FROM ' + osm_table + ' osm\n' +
-                 'LEFT JOIN ' + districts_table + ' dist\n'
-                 'ON ST_Contains(dist.geom, osm.geog::geometry)\n' +
-                 'WHERE osm.geog IS NOT NULL')
-        cur.execute(query)
+        sql = ('SELECT id, type, ' + district_id_col + ' as dist_id ' +
+               'FROM ' + osm_table + ' AS osm\n' +
+               'LEFT JOIN ' + districts_table + ' AS dist\n'
+               'ON ST_Contains(dist.geom, osm.geog::geometry)\n' +
+               'WHERE osm.geog IS NOT NULL')
+        cur.execute(sql)
 
         # update each OSM entity with its district ID
         for est in cur.fetchall():
             osm_id, osm_type, dist_id = est
-            statement = ('UPDATE ' + osm_table + ' SET district_id = %s\n'
-                         'WHERE id = %s AND type = %s')
+            sql = ('UPDATE ' + osm_table + ' SET district_id = %s\n'
+                   'WHERE id = %s AND type = %s')
             values = (dist_id, osm_id, osm_type)
             try:
-                cur.execute(statement, values)
+                cur.execute(sql, values)
             except psycopg2.ProgrammingError:
                 self.connection.rollback()
                 print "Couldn't update district_id column in " + osm_table + " table."
                 print "SQL statement and values for last attempted execute:"
-                print statement, values
+                print sql, values
                 return False
 
         self.connection.commit()
@@ -144,16 +144,16 @@ class Database(object):
 
         cur = self.connection.cursor()
 
-        query = ('SELECT district_id, name FROM (\n' +
-                 '    SELECT district_id, count(district_id) AS num\n'
-                 '    FROM ' + fhrs_table + '\n' +
-                 '    GROUP BY district_id\n' +
-                 ') AS f\n' +
-                 'LEFT JOIN ' + districts_table + ' as d ON f.district_id = d.gid\n' +
-                 'WHERE num >= %s\n' +
-                 'ORDER BY name')
+        sql = ('SELECT district_id, name FROM (\n' +
+               '    SELECT district_id, count(district_id) AS num\n'
+               '    FROM ' + fhrs_table + '\n' +
+               '    GROUP BY district_id\n' +
+               ') AS f\n' +
+               'LEFT JOIN ' + districts_table + ' as d ON f.district_id = d.gid\n' +
+               'WHERE num >= %s\n' +
+               'ORDER BY name')
         values = (threshold,)
-        cur.execute(query, values)
+        cur.execute(sql, values)
 
         districts = []
         for dist in cur.fetchall():
@@ -170,29 +170,25 @@ class Database(object):
         fhrs_table (string): name of FHRS establishments database table
         """
 
-        # shorten names for convenience
-        o = osm_table
-        f = fhrs_table
-
         cur = self.connection.cursor()
         cur.execute('drop view if exists ' + view_name + ' cascade')
         self.connection.commit()
 
-        statement = ('create view ' + view_name + ' as\n' +
-            'select ' + o + '."name" as osm_name, ' + f + '."BusinessName" as fhrs_name,\n' +
-            'case when ' + o + '."fhrs:id" is not null and ' + f + '."FHRSID" is not null then \'matched\'\n'
-            'when ' + o + '."fhrs:id" is not null and ' + f + '."FHRSID" is null then \'mismatch\'\n'
-            'when ' + o + '."id" is null and ' + f + '."FHRSID" is not null then \'FHRS\'\n'
-            'when ' + o + '."id" is not null and ' + f + '."FHRSID" is null then \'OSM\'\n'
-            'end as status,\n' +
-            f + '."PostCode" as fhrs_postcode, ' + o + '."addr:postcode" as osm_postcode,\n' +
-            o + '."geog" as osm_geog, ' + f + '."geog" as fhrs_geog,\n' +
-            f + '."FHRSID",\n' +
-            o + '.district_id as osm_district_id, ' + f + '.district_id as fhrs_district_id\n' +
-            'from ' + f + '\n' +
-            'full outer join ' + o + ' on ' + f + '."FHRSID" = ' + o + '."fhrs:id"\n' +
-            'where coalesce(' + o + '.geog, ' + f + '.geog) is not null')
-        cur.execute(statement)
+        sql = ('CREATE VIEW ' + view_name + ' AS\n' +
+               'SELECT o."name" as osm_name, f."BusinessName" as fhrs_name,\n' +
+               'CASE WHEN o."fhrs:id" IS NOT NULL and f."FHRSID" IS NOT NULL then \'matched\'\n'
+               'WHEN o."fhrs:id" IS NOT NULL and f."FHRSID" IS NULL then \'mismatch\'\n'
+               'WHEN o."id" IS NULL and f."FHRSID" IS NOT NULL then \'FHRS\'\n'
+               'WHEN o."id" IS NOT NULL and f."FHRSID" IS NULL then \'OSM\'\n'
+               'END AS status,\n' +
+               'f."PostCode" AS fhrs_postcode, o."addr:postcode" AS osm_postcode,\n' +
+               'o."geog" AS osm_geog, f."geog" AS fhrs_geog,\n' +
+               'f."FHRSID",\n' +
+               'o.district_id AS osm_district_id, f.district_id AS fhrs_district_id\n' +
+               'FROM ' + fhrs_table + ' AS f\n' +
+               'FULL OUTER JOIN ' + osm_table + ' AS o ON f."FHRSID" = o."fhrs:id"\n' +
+               'WHERE COALESCE(o.geog, f.geog) IS NOT NULL')
+        cur.execute(sql)
         self.connection.commit()
 
     def create_postcode_mismatch_view(self, view_name='postcode_mismatch',
@@ -210,13 +206,13 @@ class Database(object):
         cur.execute('drop view if exists ' + view_name + ' cascade')
         self.connection.commit()
 
-        statement = ('create view ' + view_name + ' as ' +
-            'SELECT osm_name, osm_postcode, fhrs_postcode\n'
-            'FROM ' + comparison_view + '\n'
-            'WHERE status = \'matched\' AND osm_postcode != fhrs_postcode\n'
-            'ORDER BY osm_postcode')
+        sql = ('CREATE VIEW ' + view_name + ' AS\n' +
+               'SELECT osm_name, osm_postcode, fhrs_postcode\n'
+               'FROM ' + comparison_view + '\n'
+               'WHERE status = \'matched\' AND osm_postcode != fhrs_postcode\n'
+               'ORDER BY osm_postcode')
 
-        cur.execute(statement)
+        cur.execute(sql)
         self.connection.commit()
 
     def create_suggest_matches_view(self, view_name='suggest_matches',
@@ -234,33 +230,29 @@ class Database(object):
         levenshtein_distance (integer): max Levenshtein distance for names to be matched
         """
 
-        # shorten names for convenience
-        o = osm_table
-        f = fhrs_table
-        lev_dist = str(levenshtein_distance)
-
         cur = self.connection.cursor()
         cur.execute('drop view if exists ' + view_name + ' cascade')
         self.connection.commit()
 
-        statement = ('create view ' + view_name + ' as ' +
-            'SELECT ' + o + '.name AS osm_name, ' + f + '."BusinessName" AS fhrs_name,\n' +
-            o + ".id as osm_id, " + o + ".type as osm_type, " + f + '."FHRSID",\n' +
-            f + '."AddressLine1", ' + f + '."AddressLine2", \n' +
-            f + '."AddressLine3", ' + f + '."AddressLine4", ' + f + '."PostCode", \n' +
-            'ST_Distance(' + o + '.geog, ' + f + '.geog) AS distance_metres,\n' +
-            o + '.geog AS osm_geog, ' + f + '.geog AS fhrs_geog,\n' +
-            o + '.district_id AS osm_district_id, ' + f + '.district_id AS fhrs_district_id\n' +
-            'FROM ' + o + '\n' +
-            'INNER JOIN ' + fhrs_table + '\n' +
-            'ON (' + f + '."BusinessName" LIKE \'%\' || ' + o + '.name || \'%\'\n' +
-            '    OR levenshtein_less_equal(' + o + '.name, ' + f + '."BusinessName", ' +
-                                           lev_dist + ') < ' + lev_dist + ')\n' +
-            'AND ST_Distance(' + o + '.geog, ' + f + '.geog) < 250\n' +
-            'WHERE ' + o + '."fhrs:id" IS NULL\n' +
-            'ORDER BY ' + o + '.name')
+        sql = ('CREATE VIEW ' + view_name + ' AS\n' +
+               'SELECT o.name AS osm_name, f."BusinessName" AS fhrs_name,\n' +
+               'o.id AS osm_id, o.type AS osm_type, f."FHRSID",\n' +
+               'f."AddressLine1", f."AddressLine2", \n' +
+               'f."AddressLine3", f."AddressLine4", f."PostCode", \n' +
+               'ST_Distance(o.geog, f.geog) AS distance_metres,\n' +
+               'o.geog AS osm_geog, f.geog AS fhrs_geog,\n' +
+               'o.district_id AS osm_district_id, f.district_id AS fhrs_district_id\n' +
+               'FROM ' + osm_table + ' AS o\n' +
+               'INNER JOIN ' + fhrs_table + ' AS f\n' +
+               # escape % with another %
+               'ON (f."BusinessName" LIKE \'%%\' || o.name || \'%%\'\n' +
+               '    OR levenshtein_less_equal(o.name, f."BusinessName", %s) < %s)\n' +
+               'AND ST_Distance(o.geog, f.geog) < %s\n' +
+               'WHERE o."fhrs:id" IS NULL\n' +
+               'ORDER BY o.name')
+        values = (levenshtein_distance, levenshtein_distance, distance_metres)
 
-        cur.execute(statement)
+        cur.execute(sql, values)
         self.connection.commit()
 
     def get_overview_geojson(self, view_name='compare', district_id=182):
@@ -277,38 +269,39 @@ class Database(object):
 
         # need to cast JSON as text to prevent result being interpreted into
         # Python structures (psycopg2 issue #172)
-        query = ("SELECT CAST(row_to_json(fc) AS TEXT)\n" +
-        "FROM (\n" +
-        "   SELECT 'FeatureCollection' as type, array_to_json(array_agg(f)) as features\n" +
-        "   FROM (\n" +
-        "       SELECT 'Feature' as type,\n" +
-        "       ST_AsGeoJSON(coalesce(osm_geog, fhrs_geog))::json as geometry,\n" +
-        "       row_to_json((\n" +
-        "           SELECT l FROM (\n" +
-        "               SELECT string_agg(\n" +
-        "                   case when \"FHRSID\" is not null then\n" +
-        "                       concat('<a href=\"" + self.fhrs_est_url_prefix + "',\n" +
-        "                           \"FHRSID\", '" + self.fhrs_est_url_suffix + "\">',\n" +
-        "                           coalesce(osm_name, fhrs_name),\n" +
-        "                           '</a> (', status, ')')\n" +
-        "                   when \"FHRSID\" is null then\n" +
-        "                       concat(coalesce(osm_name, fhrs_name),\n" +
-        "                           ' (', status, ')')\n" +
-        "                   end, '<br />'\n" +
-        "               ) as list,\n" +
-        "               count(case when status = 'matched' then 1 end) as matched,\n" +
-        "               count(case when status = 'mismatch' then 1 end) as mismatch,\n" +
-        "               count(case when status = 'FHRS' then 1 end) as fhrs,\n" +
-        "               count(case when status = 'OSM' then 1 end) as osm\n" +
-        "           ) as l\n" +
-        "       )) as properties\n" +
-        "       FROM " + view_name + " as lg\n" +
-        "       WHERE COALESCE(osm_district_id, fhrs_district_id) = " + str(district_id) + "\n" +
-        "       GROUP BY coalesce(osm_geog, fhrs_geog)\n" +
-        "   ) as f\n" +
-        ") as fc;")
+        sql = ("SELECT CAST(row_to_json(fc) AS TEXT)\n" +
+               "FROM (\n" +
+               "   SELECT 'FeatureCollection' AS type, array_to_json(array_agg(f)) AS features\n" +
+               "   FROM (\n" +
+               "       SELECT 'Feature' AS type,\n" +
+               "       ST_AsGeoJSON(COALESCE(osm_geog, fhrs_geog))::json AS geometry,\n" +
+               "       row_to_json((\n" +
+               "           SELECT l FROM (\n" +
+               "               SELECT string_agg(\n" +
+               "                   CASE WHEN \"FHRSID\" IS NOT NULL THEN\n" +
+               "                       CONCAT('<a href=\"" + self.fhrs_est_url_prefix + "', "
+                                             "\"FHRSID\", '" + self.fhrs_est_url_suffix + "\">',\n" +
+               "                              COALESCE(osm_name, fhrs_name),\n" +
+               "                              '</a> (', status, ')')\n" +
+               "                   WHEN \"FHRSID\" IS NULL THEN\n" +
+               "                       CONCAT(COALESCE(osm_name, fhrs_name),\n" +
+               "                              ' (', status, ')')\n" +
+               "                   END, '<br />'\n" +
+               "               ) AS list,\n" +
+               "               COUNT(CASE WHEN status = 'matched' THEN 1 END) AS matched,\n" +
+               "               COUNT(CASE WHEN status = 'mismatch' THEN 1 END) AS mismatch,\n" +
+               "               COUNT(CASE WHEN status = 'FHRS' THEN 1 END) AS fhrs,\n" +
+               "               COUNT(CASE WHEN status = 'OSM' THEN 1 END) AS osm\n" +
+               "           ) AS l\n" +
+               "       )) AS properties\n" +
+               "       FROM " + view_name + " AS lg\n" +
+               "       WHERE COALESCE(osm_district_id, fhrs_district_id) = %s\n" +
+               "       GROUP BY COALESCE(osm_geog, fhrs_geog)\n" +
+               "   ) AS f\n" +
+               ") AS fc;")
+        values = (district_id,)
 
-        cur.execute(query)
+        cur.execute(sql, values)
         return cur.fetchone()[0]
 
     def get_suggest_matches_geojson(self, view_name='suggest_matches', district_id=182):
@@ -325,43 +318,44 @@ class Database(object):
 
         # need to cast JSON as text to prevent result being interpreted into
         # Python structures (psycopg2 issue #172)
-        query = ("SELECT CAST(row_to_json(fc) AS TEXT)\n" +
-        "FROM (\n" +
-        "   SELECT 'FeatureCollection' as type, array_to_json(array_agg(f)) as features\n" +
-        "   FROM (\n" +
-        "       SELECT 'Feature' as type,\n" +
-        "       ST_AsGeoJSON(osm_geog)::json as geometry,\n" +
-        "       row_to_json((\n" +
-        "           SELECT l FROM (\n" +
-        "               SELECT (\n" +
-        "                   concat('OSM: <a href=\"" + self.osm_url_prefix + "', osm_type,\n" +
-        "                       '/', osm_id, '\">', osm_name, '</a>'\n" +
-        "                       '<br />FHRS: <a href=\"" + self.fhrs_est_url_prefix + "',\n" +
-        "                       \"FHRSID\", '" + self.fhrs_est_url_suffix + "\">', fhrs_name,\n" +
-        "                       '</a><br /><a href=\"" + self.josm_url_prefix + "',"
-        "                       'load_object?objects=', substring(osm_type from 1 for 1), osm_id,\n" +
-        "                       '&addtags=fhrs:id=', \"FHRSID\",\n" +
-        "                       case when \"AddressLine1\" is not null then\n" +
-        "                       concat('%7Cfixme:addr1=', \"AddressLine1\") end,\n" +
-        "                       case when \"AddressLine2\" is not null then\n" +
-        "                       concat('%7Cfixme:addr2=', \"AddressLine2\") end,\n" +
-        "                       case when \"AddressLine3\" is not null then\n" +
-        "                       concat('%7Cfixme:addr3=', \"AddressLine3\") end,\n" +
-        "                       case when \"AddressLine4\" is not null then\n" +
-        "                       concat('%7Cfixme:addr3=', \"AddressLine4\") end,\n" +
-        "                       case when \"PostCode\" is not null then\n" +
-        "                       concat('%7Caddr:postcode=', \"PostCode\") end,\n" +
-        "                       '%7Csource:addr=FHRS Open Data',\n" +
-        "                       '\">Add tags in JOSM</a>')\n" +
-        "               ) as text\n" +
-        "           ) as l\n" +
-        "       )) as properties\n" +
-        "       FROM " + view_name + " as lg\n" +
-        "       WHERE osm_district_id = " + str(district_id) + "\n" +
-        "   ) as f\n" +
-        ") as fc;")
+        sql = ("SELECT CAST(row_to_json(fc) AS TEXT)\n" +
+               "FROM (\n" +
+               "   SELECT 'FeatureCollection' AS type, array_to_json(array_agg(f)) AS features\n" +
+               "   FROM (\n" +
+               "       SELECT 'Feature' AS type,\n" +
+               "       ST_AsGeoJSON(osm_geog)::json AS geometry,\n" +
+               "       row_to_json((\n" +
+               "           SELECT l FROM (\n" +
+               "               SELECT (\n" +
+               "                   CONCAT('OSM: <a href=\"" + self.osm_url_prefix + "',\n" +
+               "                          TRIM(TRAILING ' ' FROM osm_type),\n" +
+               "                          '/', osm_id, '\">', osm_name, '</a>'\n" +
+               "                          '<br />FHRS: <a href=\"" + self.fhrs_est_url_prefix + "',\n" +
+               "                          \"FHRSID\", '" + self.fhrs_est_url_suffix + "\">', fhrs_name,\n" +
+               "                          '</a><br /><a href=\"" + self.josm_url_prefix + "',"
+               "                          'load_object?objects=', substring(osm_type from 1 for 1),\n" +
+               "                          osm_id, '&addtags=fhrs:id=', \"FHRSID\",\n" +
+               "                          CASE WHEN \"AddressLine1\" IS NOT NULL THEN\n" +
+               "                              CONCAT('%7Cfixme:addr1=', \"AddressLine1\") END,\n" +
+               "                          CASE WHEN \"AddressLine2\" IS NOT NULL THEN\n" +
+               "                              CONCAT('%7Cfixme:addr2=', \"AddressLine2\") END,\n" +
+               "                          CASE WHEN \"AddressLine3\" IS NOT NULL THEN\n" +
+               "                              CONCAT('%7Cfixme:addr3=', \"AddressLine3\") END,\n" +
+               "                          CASE WHEN \"AddressLine4\" IS NOT NULL THEN\n" +
+               "                              CONCAT('%7Cfixme:addr3=', \"AddressLine4\") END,\n" +
+               "                          CASE WHEN \"PostCode\" IS NOT NULL THEN\n" +
+               "                              CONCAT('%7Caddr:postcode=', \"PostCode\") END,\n" +
+               "                          '%7Csource:addr=FHRS Open Data',\n" +
+               "                          '\">Add tags in JOSM</a>')\n" +
+               "               ) AS text\n" +
+               "           ) AS l\n" +
+               "       )) AS properties\n" +
+               "       FROM " + view_name + " AS lg\n" +
+               "       WHERE osm_district_id = " + str(district_id) + "\n" +
+               "   ) AS f\n" +
+               ") AS fc;")
 
-        cur.execute(query)
+        cur.execute(sql)
         return cur.fetchone()[0]
 
     def get_district_stats(self, district_id=182):
@@ -374,11 +368,11 @@ class Database(object):
 
         cur = self.connection.cursor()
 
-        query = ('select status, count(status) from compare\n' +
-                 'where coalesce (osm_district_id, fhrs_district_id) = %s\n' +
-                 'group by status')
+        sql = ('SELECT status, count(status) FROM compare\n' +
+               'WHERE COALESCE(osm_district_id, fhrs_district_id) = %s\n' +
+               'GROUP BY status')
         values = (district_id,)
-        cur.execute(query, values)
+        cur.execute(sql, values)
 
         # default values
         s = {'OSM': 0, 'FHRS': 0, 'matched': 0, 'mismatch': 0}
@@ -439,18 +433,18 @@ class OSMDataset(object):
         """
 
         cur = connection.cursor()
-        cur.execute('drop view if exists compare cascade')
+        cur.execute('DROP VIEW IF EXISTS compare CASCADE')
         connection.commit()
-        cur.execute('drop table if exists ' + self.table_name + ' cascade')
+        cur.execute('DROP TABLE IF EXISTS ' + self.table_name + ' CASCADE')
         connection.commit()
 
-        statement = 'create table ' + self.table_name + '\n'
+        sql = 'CREATE TABLE ' + self.table_name + '\n'
         # N.B. field names case sensitive because surrounded by ""
-        statement += '(id BIGINT, geog GEOGRAPHY(POINT, 4326), type CHAR(8),\n'
+        sql += '(id BIGINT, geog GEOGRAPHY(POINT, 4326), type CHAR(8),\n'
         for this_field in self.field_list:
-            statement += '"' + this_field['name'] + '" ' + this_field['format'] + ','
-        statement += '\nPRIMARY KEY (id, type))'
-        cur.execute(statement)
+            sql += '"' + this_field['name'] + '" ' + this_field['format'] + ','
+        sql += '\nPRIMARY KEY (id, type))'
+        cur.execute(sql)
         connection.commit()
 
     def run_overpass_query(self, bbox=[52.314,-1.356,52.412,-1.178], timeout=180):
@@ -529,23 +523,23 @@ class OSMDataset(object):
 
         # create an SQL statement and matching tuple of values to insert
         values_list = []
-        statement = "insert into " + self.table_name + " values ("
+        sql = "INSERT INTO " + self.table_name + " VALUES ("
         for key in record.keys():
             if key == 'geog':
-                statement += record['geog']
+                sql += record['geog']
             else:
                 values_list.append(record[key])
-                statement += "%s"
+                sql += "%s"
             # if not last key/value pair in record, add a comma
             if (key != record.keys()[-1]):
-                statement += ","
+                sql += ","
         values = tuple(values_list)
-        statement += ")"
+        sql += ")"
 
         cur = connection.cursor()
 
         try:
-            cur.execute(statement, values)
+            cur.execute(sql, values)
         except (psycopg2.DataError, psycopg2.IntegrityError) as e:
             connection.rollback()
             print "\nCouldn't insert the following OSM data:"
@@ -651,14 +645,14 @@ class FHRSDataset(object):
         connection.commit()
 
         # N.B. field names case sensitive because surrounded by ""
-        statement = ('create table ' + self.auth_table_name + ' ' +
-                     '("LocalAuthorityId" SMALLINT PRIMARY KEY, "LocalAuthorityIdCode" SMALLINT UNIQUE,\n')
+        sql = ('CREATE TABLE ' + self.auth_table_name + '\n' +
+               '("LocalAuthorityId" SMALLINT PRIMARY KEY, "LocalAuthorityIdCode" SMALLINT UNIQUE,\n')
         for this_field in self.auth_field_list:
-            statement += '"' + this_field['name'] + '" ' + this_field['format']
+            sql += '"' + this_field['name'] + '" ' + this_field['format']
             if this_field != self.auth_field_list[-1]: # i.e. not the last field in the list
-                statement += ', '
-        statement += ')'
-        cur.execute(statement)
+                sql += ', '
+        sql += ')'
+        cur.execute(sql)
         connection.commit()
 
     def create_establishment_table(self, connection):
@@ -673,15 +667,15 @@ class FHRSDataset(object):
         connection.commit()
 
         # N.B. field names case sensitive because surrounded by ""
-        statement = ('create table ' + self.est_table_name + ' '
-                     '("FHRSID" INT PRIMARY KEY, geog GEOGRAPHY(POINT, 4326),\n' +
-                     '"LocalAuthorityCode" SMALLINT REFERENCES ' +
-                     self.auth_table_name + '("LocalAuthorityIdCode")\n')
+        sql = ('CREATE TABLE ' + self.est_table_name + '\n'
+               '("FHRSID" INT PRIMARY KEY, geog GEOGRAPHY(POINT, 4326),\n' +
+               '"LocalAuthorityCode" SMALLINT REFERENCES ' +
+               self.auth_table_name + '("LocalAuthorityIdCode")\n')
         for this_field in self.est_field_list:
-            statement += ', "' + this_field['name'] + '" ' + this_field['format']
-        statement += ')'
+            sql += ', "' + this_field['name'] + '" ' + this_field['format']
+        sql += ')'
 
-        cur.execute(statement)
+        cur.execute(sql)
         connection.commit()
 
     def write_authorities(self, xml_string, connection):
@@ -713,20 +707,20 @@ class FHRSDataset(object):
 
             # create an SQL statement and matching tuple of values to insert
             values_list = []
-            statement = "insert into " + self.auth_table_name + " values ("
+            sql = "INSERT INTO " + self.auth_table_name + " VALUES ("
             for key in record.keys():
                 values_list.append(record[key])
-                statement += "%s"
+                sql += "%s"
                 # if not last key/value pair in record, add a comma
                 if (key != record.keys()[-1]):
-                    statement += ","
+                    sql += ","
             values = tuple(values_list)
-            statement += ")"
+            sql += ")"
 
             cur = connection.cursor()
 
             try:
-                cur.execute(statement, values)
+                cur.execute(sql, values)
             except (psycopg2.DataError, psycopg2.IntegrityError) as e:
                 connection.rollback()
                 print "\nCouldn't insert the following FHRS authority data:"
@@ -773,23 +767,23 @@ class FHRSDataset(object):
 
             # create an SQL statement and matching tuple of values to insert
             values_list = []
-            statement = "insert into " + self.est_table_name + " values ("
+            sql = "INSERT INTO " + self.est_table_name + " VALUES ("
             for key in record.keys():
                 if key == 'geog' and record['geog'] is not None:
-                    statement += record['geog']
+                    sql += record['geog']
                 else:
                     values_list.append(record[key])
-                    statement += "%s"
+                    sql += "%s"
                 # if not last key/value pair in record, add a comma
                 if (key != record.keys()[-1]):
-                    statement += ","
+                    sql += ","
             values = tuple(values_list)
-            statement += ")"
+            sql += ")"
 
             cur = connection.cursor()
 
             try:
-                cur.execute(statement, values)
+                cur.execute(sql, values)
             except (psycopg2.DataError, psycopg2.IntegrityError) as e:
                 connection.rollback()
                 print "\nCouldn't insert the following FHRS establishment data:"
@@ -811,10 +805,10 @@ class FHRSDataset(object):
 
         cur = connection.cursor()
 
-        query = 'SELECT "LocalAuthorityId" from ' + self.auth_table_name + '\n'
+        sql = 'SELECT "LocalAuthorityId" FROM ' + self.auth_table_name + '\n'
         if region_name is not None:
-            query += 'WHERE "RegionName" = \'' + region_name + '\''
-        cur.execute(query)
+            sql += 'WHERE "RegionName" = \'' + region_name + '\''
+        cur.execute(sql)
         authority_ids = []
         for auth in cur.fetchall():
             authority_ids.append(auth[0])
@@ -831,16 +825,16 @@ class FHRSDataset(object):
 
         cur = connection.cursor()
 
-        query = 'SELECT ST_Extent(geog::geometry) FROM ' + self.est_table_name + ' est\n'
+        sql = 'SELECT ST_Extent(geog::geometry) FROM ' + self.est_table_name + ' est\n'
         if authority_id is not None or region_name is not None:
-            query += ('LEFT JOIN fhrs_authorities auth\n' +
-                      'ON est."LocalAuthorityCode" = auth."LocalAuthorityIdCode"\n')
+            sql += ('LEFT JOIN fhrs_authorities auth\n' +
+                    'ON est."LocalAuthorityCode" = auth."LocalAuthorityIdCode"\n')
         if authority_id is not None:
-            query += 'WHERE "LocalAuthorityId" = ' + str(authority_id)
+            sql += 'WHERE "LocalAuthorityId" = ' + str(authority_id)
         elif region_name is not None:
-            query += 'WHERE "RegionName" = \'' + region_name + '\''
+            sql += 'WHERE "RegionName" = \'' + region_name + '\''
 
-        cur.execute(query)
+        cur.execute(sql)
         result = cur.fetchone()[0][4:-1] # remove BOX( and trailing )
 
         # split string into four co-ordinates
@@ -866,58 +860,58 @@ class FHRSDataset(object):
         cur = connection.cursor()
         values = OrderedDict()
 
-        query = ('select min(' + column + ') as min\n' +
-	             'from ' + table + '\n' +
-	             'where ' + column + ' is not null')
-        cur.execute(query)
+        sql = ('SELECT MIN(' + column + ') AS min\n' +
+	           'FROM ' + table + '\n' +
+	           'WHERE ' + column + ' IS NOT NULL')
+        cur.execute(sql)
         values['min'] = cur.fetchone()[0]
 
-        query = ('select max(num) as q1 from (\n' +
-	             '    select ' + column + ' as num\n' +
-	             '    from ' + table + '\n' +
-	             '    where ' + column + ' is not null\n' +
-	             '    order by num asc\n' +
-	             '    limit (\n' +
-	             '        select count(' + column + ')/4\n' +
-	             '        from ' + table + '\n' +
-	             '        where ' + column + ' is not null\n' +
-	             '    )\n' +
-                 ') as num')
-        cur.execute(query)
+        sql = ('SELECT MAX(num) AS q1 FROM (\n' +
+	           '    SELECT ' + column + ' AS num\n' +
+	           '    FROM ' + table + '\n' +
+	           '    WHERE ' + column + ' IS NOT NULL\n' +
+	           '    ORDER BY num asc\n' +
+	           '    LIMIT (\n' +
+	           '        SELECT count(' + column + ')/4\n' +
+	           '        FROM ' + table + '\n' +
+	           '        WHERE ' + column + ' IS NOT NULL\n' +
+	           '    )\n' +
+               ') AS num')
+        cur.execute(sql)
         values['Q1'] = cur.fetchone()[0]
 
-        query = ('select max(num) as med from (\n' +
-	             '    select ' + column + ' as num\n' +
-	             '    from ' + table + '\n' +
-	             '    where ' + column + ' is not null\n' +
-	             '    order by num asc\n' +
-	             '    limit (\n' +
-	             '        select count(' + column + ')/2\n' +
-	             '        from ' + table + '\n' +
-	             '        where ' + column + ' is not null\n' +
-	             '    )\n' +
-                 ') as num')
-        cur.execute(query)
+        sql = ('SELECT MAX(num) AS med FROM (\n' +
+	           '    SELECT ' + column + ' as num\n' +
+	           '    FROM ' + table + '\n' +
+	           '    WHERE ' + column + ' IS NOT NULL\n' +
+	           '    ORDER BY num asc\n' +
+	           '    LIMIT (\n' +
+	           '        SELECT count(' + column + ')/2\n' +
+	           '        FROM ' + table + '\n' +
+	           '        WHERE ' + column + ' IS NOT NULL\n' +
+	           '    )\n' +
+               ') AS num')
+        cur.execute(sql)
         values['med'] = cur.fetchone()[0]
 
-        query = ('select min(num) as q3 from (\n' +
-	             '    select ' + column + ' as num\n' +
-	             '    from ' + table + '\n' +
-	             '    where ' + column + ' is not null\n' +
-	             '    order by num desc\n' +
-	             '    limit (\n' +
-	             '        select count(' + column + ')/4\n' +
-	             '        from ' + table + '\n' +
-	             '        where ' + column + ' is not null\n' +
-	             '    )\n' +
-                 ') as num')
-        cur.execute(query)
+        sql = ('SELECT MIN(num) AS q3 FROM (\n' +
+	           '    SELECT ' + column + ' as num\n' +
+	           '    FROM ' + table + '\n' +
+	           '    WHERE ' + column + ' IS NOT NULL\n' +
+	           '    ORDER BY num desc\n' +
+	           '    LIMIT (\n' +
+	           '        SELECT count(' + column + ')/4\n' +
+	           '        FROM ' + table + '\n' +
+	           '        WHERE ' + column + ' IS NOT NULL\n' +
+	           '    )\n' +
+               ') AS num')
+        cur.execute(sql)
         values['Q3'] = cur.fetchone()[0]
 
-        query = ('select max(' + column + ') as max\n' +
-	             'from ' + table + '\n' +
-	             'where ' + column + ' is not null')
-        cur.execute(query)
+        sql = ('SELECT max(' + column + ') as max\n' +
+	           'FROM ' + table + '\n' +
+	           'WHERE ' + column + ' IS NOT NULL')
+        cur.execute(sql)
         values['max'] = cur.fetchone()[0]
 
         values['iq_range'] = values['Q3'] - values['Q1']
@@ -941,32 +935,36 @@ class FHRSDataset(object):
 
         cur = connection.cursor()
 
-        query = ('select min(ST_Y(geog::geometry)) as min_lat\n' +
-                 'from ' + self.est_table_name + '\n' +
-                 'where geog is not null\n' +
-                 'and ST_Y(geog::geometry) > ' + str(lat['fence_low']))
-        cur.execute(query)
+        sql = ('SELECT min(ST_Y(geog::geometry)) as min_lat\n' +
+               'FROM ' + self.est_table_name + '\n' +
+               'WHERE geog IS NOT NULL\n' +
+               'AND ST_Y(geog::geometry) > %s')
+        values = (lat['fence_low'],)
+        cur.execute(sql, values)
         s = cur.fetchone()[0]
 
-        query = ('select min(ST_X(geog::geometry)) as min_lon\n' +
-                 'from ' + self.est_table_name + '\n' +
-                 'where geog is not null\n' +
-                 'and ST_X(geog::geometry) > ' + str(lon['fence_low']))
-        cur.execute(query)
+        sql = ('SELECT min(ST_X(geog::geometry)) as min_lon\n' +
+               'FROM ' + self.est_table_name + '\n' +
+               'WHERE geog IS NOT NULL\n' +
+               'AND ST_X(geog::geometry) > %s')
+        values = (lon['fence_low'],)
+        cur.execute(sql, values)
         w = cur.fetchone()[0]
 
-        query = ('select max(ST_Y(geog::geometry)) as max_lat\n' +
-                 'from ' + self.est_table_name + '\n' +
-                 'where geog is not null\n' +
-                 'and ST_Y(geog::geometry) < ' + str(lat['fence_high']))
-        cur.execute(query)
+        sql = ('SELECT max(ST_Y(geog::geometry)) as max_lat\n' +
+               'FROM ' + self.est_table_name + '\n' +
+               'WHERE geog IS NOT NULL\n' +
+               'AND ST_Y(geog::geometry) < %s')
+        values = (lat['fence_high'],)
+        cur.execute(sql, values)
         n = cur.fetchone()[0]
 
-        query = ('select max(ST_X(geog::geometry)) as max_lon\n' +
-                 'from ' + self.est_table_name + '\n' +
-                 'where geog is not null\n' +
-                 'and ST_X(geog::geometry) < ' + str(lon['fence_high']))
-        cur.execute(query)
+        sql = ('SELECT max(ST_X(geog::geometry)) as max_lon\n' +
+               'FROM ' + self.est_table_name + '\n' +
+               'WHERE geog IS NOT NULL\n' +
+               'AND ST_X(geog::geometry) < %s')
+        values = (lon['fence_high'],)
+        cur.execute(sql, values)
         e = cur.fetchone()[0]
 
         return [s,w,n,e]
