@@ -642,7 +642,11 @@ class FHRSDataset(object):
         request = urllib2.Request(url)
         for header, content in self.api_headers:
             request.add_header(header, content)
-        response = urllib2.urlopen(request)
+        try:
+            response = urllib2.urlopen(request)
+        except URLError:
+            print "Couldn't get data using FHRS endpoint " + endpoint
+            print "Continuing..."
         return response.read()
 
     def download_authorities(self):
