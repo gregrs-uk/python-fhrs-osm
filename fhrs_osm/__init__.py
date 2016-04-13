@@ -823,7 +823,8 @@ class FHRSDataset(object):
                 connection.commit()
 
     def get_authorities(self, connection, region_name=None):
-        """Return a list of FHRS authority IDs
+        """Return a list of FHRS authority IDs (without those for Northern
+        Ireland because OS Boundary Line does not cover Northern Ireland)
 
         connection (object): database connection
         region_name (string): if supplied, only return the IDs of local
@@ -833,9 +834,10 @@ class FHRSDataset(object):
 
         cur = connection.cursor()
 
-        sql = 'SELECT "LocalAuthorityId" FROM ' + self.auth_table_name + '\n'
+        sql = ('SELECT "LocalAuthorityId" FROM ' + self.auth_table_name + '\n' +
+               'WHERE "RegionName" != \'Northern Ireland\'\n')
         if region_name is not None:
-            sql += 'WHERE "RegionName" = \'' + region_name + '\''
+            sql += 'AND "RegionName" = \'' + region_name + '\''
         cur.execute(sql)
         authority_ids = []
         for auth in cur.fetchall():
