@@ -130,27 +130,30 @@ class Database(object):
         return True
 
     def get_inhabited_districts(self, fhrs_table='fhrs_establishments',
-                                osm_table='osm', districts_table='districts'):
-        """Return a list of dicts of Boundary Line districts for which there is
-        some data present in the database.
+                                districts_table='districts', threshold=10):
+        """Return a list of dicts of Boundary Line districts for which the
+        database contains greater than a threshold number of FHRS
+        establishments.
 
         fhrs_table (string): name of FHRS establishments database table
-        osm_table (string): name of OSM database table
         districts_table (string): name of districts database table
+        threshold (integer): minimum number of establishments for district to
+            be included
         Returns list of dicts e.g. {'id': 1, 'name': 'District'}
         """
 
         cur = self.connection.cursor()
 
-        query = ('SELECT district_id, dist.name FROM (\n' +
-                 '    SELECT district_id FROM ' + fhrs_table + '\n' +
-                 '    UNION\n' +
-                 '    SELECT district_id FROM ' + osm_table + '\n' +
-                 ') AS district_id\n' +
-                 'LEFT JOIN ' + districts_table + ' dist ON district_id = dist.gid\n' +
-                 'WHERE district_id IS NOT NULL\n' +
-                 'ORDER BY dist.name')
-        cur.execute(query)
+        query = ('SELECT district_id, name FROM (\n' +
+                 '    SELECT district_id, count(district_id) AS num\n'
+                 '    FROM ' + fhrs_table + '\n' +
+                 '    GROUP BY district_id\n' +
+                 ') AS f\n' +
+                 'LEFT JOIN ' + districts_table + ' as d ON f.district_id = d.gid\n' +
+                 'WHERE num >= %s\n' +
+                 'ORDER BY name')
+        values = (threshold,)
+        cur.execute(query, values)
 
         districts = []
         for dist in cur.fetchall():
