@@ -48,7 +48,7 @@ for dist in districts:
 <body>
 
     <h1>FHRS/OSM comparison</h1>
-    <h2>""" + dist['name'] + """</h2>    
+    <h2>""" + dist['name'] + """</h2>
 
 	<h3>District statistics</h3>
 	<table>
@@ -76,7 +76,7 @@ for dist in districts:
 
     <h3>Overview</h3>
 	<div id="overview_map" style="width: 800px; height: 600px"></div>
-	
+
 	<h3>Suggested matches</h3>
 	<div id="suggest_matches_map" style="width: 800px; height: 600px"></div>
 
@@ -88,6 +88,56 @@ for dist in districts:
 	<script src="http://code.jquery.com/jquery-2.1.0.min.js"></script>
 
 	<script>
+
+        // create maps
+
+		var overview_map = L.map('overview_map').setView([52.372, -1.263], 16);
+        var suggest_matches_map = L.map('suggest_matches_map').setView([52.372, -1.263], 16);
+
+
+        // add OSM tile layer to each map
+
+		L.tileLayer('http://a.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+			maxZoom: 18,
+			attribution: '&copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ' +
+				'Contains <a href="http://www.ordnancesurvey.co.uk">Ordnance Survey</a> and ' +
+				'<a href="http://ratings.food.gov.uk/open-data/">Food Hygiene Rating Scheme</a> ' +
+				'data &copy Crown copyright and database right'
+		}).addTo(overview_map);
+
+		L.tileLayer('http://a.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+			maxZoom: 18,
+			attribution: '&copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ' +
+				'Contains <a href="http://www.ordnancesurvey.co.uk">Ordnance Survey</a> and ' +
+				'<a href="http://ratings.food.gov.uk/open-data/">Food Hygiene Rating Scheme</a> ' +
+				'data &copy Crown copyright and database right'
+		}).addTo(suggest_matches_map);
+
+
+        // get district boundary JSON, add to maps and fit bounds
+
+        var boundary_json = './json/boundary-""" + str(dist['id']) + """.json';
+
+        var geojsonBoundaryOptions = {
+            color: "#000",
+            weight: 2,
+            opacity: 1,
+            fillColor: "#000",
+            fillOpacity: 0
+        }
+
+        $.getJSON(boundary_json, function(data) {
+            var overviewBoundaryLayer = L.geoJson(data, {
+                style: geojsonBoundaryOptions
+            }).addTo(overview_map);
+            var matchesBoundaryLayer = L.geoJson(data, {
+                style: geojsonBoundaryOptions
+            }).addTo(suggest_matches_map);
+
+            overview_map.fitBounds(overviewBoundaryLayer.getBounds());
+            suggest_matches_map.fitBounds(matchesBoundaryLayer.getBounds());
+        });
+
 
         // defaults for markers on both maps
 
@@ -101,19 +151,10 @@ for dist in districts:
         }
 
 
-        // create overview map and add OSM/marker layers
-
-		var overview_map = L.map('overview_map').setView([52.372, -1.263], 16);
-
-		L.tileLayer('http://a.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-			maxZoom: 18,
-			attribution: '&copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ' +
-				'Contains <a href="http://www.ordnancesurvey.co.uk">Ordnance Survey</a> and ' +
-				'<a href="http://ratings.food.gov.uk/open-data/">Food Hygiene Rating Scheme</a> ' +
-				'data &copy Crown copyright and database right'
-		}).addTo(overview_map);
+        // add marker layer to each map
 
         var overview_json = './json/overview-""" + str(dist['id']) + """.json';
+        var suggest_matches_json = './json/suggest-matches-""" + str(dist['id']) + """.json';
 
         $.getJSON(overview_json, function(data) {
             var overviewMarkerLayer = L.geoJson(data, {
@@ -141,21 +182,6 @@ for dist in districts:
             }).addTo(overview_map);
         });
 
-
-        // create suggested matches map and add OSM/marker layers
-
-        var suggest_matches_map = L.map('suggest_matches_map').setView([52.372, -1.263], 16);
-
-		L.tileLayer('http://a.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-			maxZoom: 18,
-			attribution: '&copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ' +
-				'Contains <a href="http://www.ordnancesurvey.co.uk">Ordnance Survey</a> and ' +
-				'<a href="http://ratings.food.gov.uk/open-data/">Food Hygiene Rating Scheme</a> ' +
-				'data &copy Crown copyright and database right'
-		}).addTo(suggest_matches_map);
-
-        var suggest_matches_json = './json/suggest-matches-""" + str(dist['id']) + """.json';
-
         $.getJSON(suggest_matches_json, function(data) {
             var matchesMarkerLayer = L.geoJson(data, {
                 pointToLayer: function (feature, latlng) {
@@ -167,43 +193,19 @@ for dist in districts:
             }).addTo(suggest_matches_map);
         });
 
-
-        // get district boundary JSON, add to maps and fit bounds
-
-        var boundary_json = './json/boundary-""" + str(dist['id']) + """.json';
-        var geojsonBoundaryOptions = {
-            color: "#000",
-            weight: 2,
-            opacity: 1,
-            fillColor: "#000",
-            fillOpacity: 0
-        }
-
-        $.getJSON(boundary_json, function(data) {
-            var overviewBoundaryLayer = L.geoJson(data, {
-                style: geojsonBoundaryOptions
-            }).addTo(overview_map);
-            var matchesBoundaryLayer = L.geoJson(data, {
-                style: geojsonBoundaryOptions
-            }).addTo(suggest_matches_map);
-
-            overview_map.fitBounds(overviewBoundaryLayer.getBounds());
-            suggest_matches_map.fitBounds(matchesBoundaryLayer.getBounds());
-        });
-
 	</script>
-	
+
 </body>
 </html>
     """)
-    
+
     filename = 'html/district-' + str(dist['id']) + '.html'
     f = open(filename, 'w')
     f.write(html)
     f.close
 
 print "Creating index HTML file"
-    
+
 html = ("""
 <!DOCTYPE html>
 <html>
@@ -218,7 +220,7 @@ html = ("""
 <body>
 
     <h1>FHRS/OSM comparison</h1>
-    
+
     <h2>Districts</h2>
     <ul>
     """)
