@@ -20,6 +20,11 @@ for dist in districts:
     f.write(db.get_suggest_matches_geojson(district_id=dist['id']))
     f.close
 
+    filename = 'html/json/boundary-' + str(dist['id']) + '.json'
+    f = open(filename, 'w')
+    f.write(db.get_district_boundary_geojson(district_id=dist['id']))
+    f.close
+
     stats = db.get_district_stats(dist['id'])
 
     html = ("""
@@ -84,7 +89,8 @@ for dist in districts:
 
 	<script>
 
-        // defaults for both maps
+        // defaults for markers on both maps
+
 		var geojsonMarkerOptions = {
             radius: 5,
             color: "#000",
@@ -94,6 +100,8 @@ for dist in districts:
             fillOpacity: 0.5
         }
 
+
+        // create overview map and add OSM/marker layers
 
 		var overview_map = L.map('overview_map').setView([52.372, -1.263], 16);
 
@@ -131,10 +139,11 @@ for dist in districts:
                     }
                 }
             }).addTo(overview_map);
-            overview_map.fitBounds(overviewMarkerLayer.getBounds());
         });
-        
-        
+
+
+        // create suggested matches map and add OSM/marker layers
+
         var suggest_matches_map = L.map('suggest_matches_map').setView([52.372, -1.263], 16);
 
 		L.tileLayer('http://a.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -156,7 +165,30 @@ for dist in districts:
                     layer.bindPopup(feature.properties.text);
                 }
             }).addTo(suggest_matches_map);
-            suggest_matches_map.fitBounds(matchesMarkerLayer.getBounds());
+        });
+
+
+        // get district boundary JSON, add to maps and fit bounds
+
+        var boundary_json = './json/boundary-""" + str(dist['id']) + """.json';
+        var geojsonBoundaryOptions = {
+            color: "#000",
+            weight: 2,
+            opacity: 1,
+            fillColor: "#000",
+            fillOpacity: 0
+        }
+
+        $.getJSON(boundary_json, function(data) {
+            var overviewBoundaryLayer = L.geoJson(data, {
+                style: geojsonBoundaryOptions
+            }).addTo(overview_map);
+            var matchesBoundaryLayer = L.geoJson(data, {
+                style: geojsonBoundaryOptions
+            }).addTo(suggest_matches_map);
+
+            overview_map.fitBounds(overviewBoundaryLayer.getBounds());
+            suggest_matches_map.fitBounds(matchesBoundaryLayer.getBounds());
         });
 
 	</script>
