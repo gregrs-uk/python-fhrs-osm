@@ -196,6 +196,10 @@ for dist in districts:
 
 html += ("""
     </ul>
+
+<p>Contains <a href="http://www.ordnancesurvey.co.uk">Ordnance Survey</a> data
+&copy Crown copyright and database right</p>
+
 </body>
 </html>
 """)
