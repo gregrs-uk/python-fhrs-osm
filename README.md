@@ -37,11 +37,11 @@ place the four `district_borough_unitary_region.*` files in the `shapefiles` dir
 
 ## Example
 
-You can see an [example HTML file for the Rugby District](examples/example.html). N.B. This will not be updated with live data.
+You can see an [example HTML file for the Rugby District](https://dl.dropboxusercontent.com/u/42978572/python-fhrs-osm-example/example.html). N.B. This will not be updated with live data.
 
 ## Overview map
 
-![Example overview map](examples/images/overview.jpg)
+![Example overview map](examples/overview.jpg)
 
 Multiple establishments in the same location are aggregated because the FHRS position data is reverse geocoded from postcodes
 * Locations with at least one OSM entity with an `fhrs:id` value not present in the FHRS data table are **red** e.g. establishments that have closed and are no longer present in the FHRS database
@@ -53,7 +53,7 @@ Clicking on a point shows a popup with the name of any OSM entities or FHRS esta
 
 ## Suggested matches map
 
-![Example suggested matches map](examples/images/match.jpg)
+![Example suggested matches map](examples/match.jpg)
 
 By default, this map shows OSM entities with possible matches in the FHRS database, based on the following criteria:
 * < 250m distance
