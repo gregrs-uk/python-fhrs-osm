@@ -35,9 +35,13 @@ place the four `district_borough_unitary_region.*` files in the `shapefiles` dir
 * The `compare` and `suggest_matches` database views can be used to compare FHRS with OSM data and suggest matching FHRS establishments for OSM entities. (These are used to create GeoJSON files for the slippy maps)
 * The `postcode_mismatch` database view can be used to list OSM entities with an `fhrs:id` tag for which the FHRS postcode does not match the OSM one
 
+## Example
+
+You can see an [example HTML file for the Rugby District](examples/example.html). N.B. This will not be updated with live data.
+
 ## Overview map
 
-![Example overview map](overview.jpg)
+![Example overview map](examples/images/overview.jpg)
 
 Multiple establishments in the same location are aggregated because the FHRS position data is reverse geocoded from postcodes
 * Locations with at least one OSM entity with an `fhrs:id` value not present in the FHRS data table are **red** e.g. establishments that have closed and are no longer present in the FHRS database
@@ -49,7 +53,7 @@ Clicking on a point shows a popup with the name of any OSM entities or FHRS esta
 
 ## Suggested matches map
 
-![Example suggested matches map](match.jpg)
+![Example suggested matches map](examples/images/match.jpg)
 
 By default, this map shows OSM entities with possible matches in the FHRS database, based on the following criteria:
 * < 250m distance
