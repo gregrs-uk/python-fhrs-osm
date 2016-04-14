@@ -2,7 +2,7 @@
 Python tools for downloading and comparing Food Hygiene Rating Scheme (FHRS) and OpenStreetMap (OSM) data and finding possible matches between it, together with Leaflet slippy maps for visualising the data.
 
 ## Features
-* Download specific OpenStreetMap and FHRS data using a modified version of overpy and the FHRS API and parse it into a PostgreSQL/PostGIS database
+* Download OpenStreetMap and FHRS data and parse it into a PostgreSQL/PostGIS database
 * Use database views to compare OpenStreetMap and FHRS data and find anomalies
 * Use a database view to find possible matches between OSM nodes/ways and FHRS establishments, based on proximity and similarity of names
 * Export HTML pages with statistics and Leaflet slippy maps, allowing users to visualise OSM/FHRS data as well as to review possible matches between FHRS and OSM data and import useful tags into JOSM
@@ -21,11 +21,12 @@ place the four `district_borough_unitary_region.*` files in the `shapefiles` dir
     * Install shapely module
     * (Re)create `fhrs` PostgreSQL database
     * Enable PostGIS and fuzzystrmatch extensions
-    * Import district boundaries from shapefiles
+    * Run `import_bline_districts.sh` to import district boundaries from shapefiles
     * Run `python get_fhrs_data.py` to download FHRS data and upload to the PostgreSQL database
         * By default, data for the Rugby and Warwick areas are downloaded, but this can be altered in `get_fhrs_data.py`
         * FHRS data is downloaded one authority at a time
     * Run `python get_osm_data.py` to download OpenStreetMap data and upload to the PostgreSQL database
+        * OSM ways are simplified to a single point at the center of the way.
         * By default, data is downloaded using Overpass API to match the bounding box of the FHRS data present in the database. The bounding box can be altered in `get_osm_data.py`
         * The OSM tag/value pairs to query can also be modified. Please see the docstrings in `fhrs_osm/__init__.py` for details
         * If OSM data for a large geographical area is required, it's best to filter a PBF file (e.g. one obtained from [GeoFabrik](http://download.geofabrik.de/europe/great-britain.html)) using `filter-osm.sh`. Set `use_xml_file = True` in `get_osm_data.py` to parse the filtered file rather than querying Overpass API
@@ -63,13 +64,6 @@ By default, this map shows OSM entities with possible matches in the FHRS databa
 
 Clicking on a point shows links to the OSM node/way web page and the FHRS establishment web page, as well as allowing the user to copy relevant tag/value pairs into JOSM
 
-## Notes
-
-OSM ways are simplified to a single point at the center of the way.
-
-
 ## Copyright
 
 Copyright &copy; [gregrs-uk](http://github.com/gregrs-uk/) 2016, published under the GNU GPL v3.0
-
-Modified version of [overpy](http://github.com/DinoTools/python-overpy) contained in `overpy_mod` directory is copyright &copy; 2014 PhiBo ([DinoTools](http://github.com/DinoTools/)), published under the MIT licence
