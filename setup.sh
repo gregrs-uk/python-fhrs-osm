@@ -8,6 +8,7 @@ then
 fi
 
 pip install psycopg2 || exit 1
+pip install shapely || exit 1
 dropdb --if-exists fhrs || exit 1
 createdb fhrs || exit 1
 psql -d fhrs -c "create extension postgis; create extension fuzzystrmatch;" || exit 1

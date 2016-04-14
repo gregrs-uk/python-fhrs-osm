@@ -3,6 +3,7 @@ import psycopg2
 from collections import OrderedDict
 import urllib2
 import xml.etree.ElementTree
+from shapely.geometry import Polygon
 
 
 class Database(object):
@@ -504,7 +505,8 @@ class OSMDataset(object):
         query += ');\n'
 
         # closing elements
-        query += 'out center;\n' # provide centroid for ways and relations
+        query += ('(._;>;);\n' + # include nodes used in ways
+                  'out;')
 
         # run the query
         api = overpy.Overpass()
@@ -590,20 +592,63 @@ class OSMDataset(object):
         else:
             connection.commit()
 
-    def write_result_nodes_and_ways(self, result, connection):
-        """Write the OSM nodes and ways from the query result to the database
+    def write_result_nodes_and_ways(self, result, connection, filter_ways=True):
+        """Filter the OSM nodes and ways from the query result and write
+        matching entities to the database
 
         result (object): result object from query
         connection (object): database connection
+        filter_ways (boolean): do we need to filter ways based on tag/value list?
         """
 
         cur = connection.cursor()
+
+        # nodes could be relevant or just contain geometry info for a way
+        # so in any case we need to filter them based on our tag_value_list
         for node in result.get_nodes():
-            self.write_entity(entity=node, lat=node.lat,
-                             lon=node.lon, connection=connection)
+            # iterate through this node's tags/values
+            for tag, value in node.tags.iteritems():
+                # if this tag/value or tag match our criteria
+                if {'t': tag, 'v': value} in self.tag_value_list or tag in self.tag_exists_list:
+                    # write to DB and stop checking this node's tags/values
+                    self.write_entity(entity=node, lat=node.lat, lon=node.lon, connection=connection)
+                    break
+
         for way in result.get_ways():
-            self.write_entity(entity=way, lat=way.center_lat,
-                             lon=way.center_lon, connection=connection)
+            if filter_ways is True:
+                # iterate through this way's tags/values
+                for tag, value in way.tags.iteritems():
+                    # if this tag/value or tag match our criteria
+                    if {'t': tag, 'v': value} in self.tag_value_list or tag in self.tag_exists_list:
+                        # write to DB and stop checking this way's tags/values
+                        centroid = self.get_way_centroid(way)
+                        self.write_entity(entity=way, lat=centroid['lat'],
+                                          lon=centroid['lon'], connection=connection)
+                        break
+            else:
+                centroid = self.get_way_centroid(way)
+                self.write_entity(entity=way, lat=centroid['lat'],
+                                  lon=centroid['lon'], connection=connection)
+
+    def get_way_centroid(self, way):
+        """Calculate the centroid of a way
+
+        way (object): overpy.Way object
+        Returns dict of lat/lon
+        """
+        # Polygon has to have at least 3 points
+        if len(way.nodes) >= 3:
+            geom = []
+            for node in way.nodes:
+                geom.append((node.lon, node.lat))
+            poly = Polygon(geom)
+            cent = poly.centroid
+            return {'lat': cent.y, 'lon': cent.x}
+        else:
+            # if way has fewer than 3 points, use average position of first two nodes
+            lat = (way.nodes[0].lat + way.nodes[1].lat) / 2
+            lon = (way.nodes[0].lon + way.nodes[1].lon) / 2
+            return {'lat': lat, 'lon': lon}
 
 
 class FHRSDataset(object):

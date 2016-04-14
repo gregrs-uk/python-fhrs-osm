@@ -17,6 +17,7 @@ Python tools for downloading and comparing Food Hygiene Rating Scheme (FHRS) and
 place the four `district_borough_unitary_region.*` files in the `shapefiles` directory. (These are used to compute which district FHRS establishments and OSM entities are in so that relavitely small GeoJSON files can be created, one for each district)
 * Run `setup.sh`, which should:
     * Install psycopg2 module
+    * Install shapely module
     * (Re)create `fhrs` PostgreSQL database
     * Enable PostGIS and fuzzystrmatch extensions
     * Import district boundaries from shapefiles
