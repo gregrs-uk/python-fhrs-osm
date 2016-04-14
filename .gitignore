@@ -2,3 +2,4 @@
 shapefiles/*
 !shapefiles/*.md
 html/*
+data/*
