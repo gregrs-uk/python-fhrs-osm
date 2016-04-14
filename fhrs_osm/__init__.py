@@ -510,6 +510,18 @@ class OSMDataset(object):
         api = overpy.Overpass()
         return api.query(query)
 
+    def parse_xml_file(self, filename):
+        """Parse XML file
+
+        Returns overpy.Result object
+        """
+        api = overpy.Overpass()
+        f = open(filename)
+        xml = f.read()
+        f.close()
+
+        return api.parse_xml(xml)
+
     def write_entity(self, entity, lat, lon, connection):
         """Write a single OSM node or way to the database
 
