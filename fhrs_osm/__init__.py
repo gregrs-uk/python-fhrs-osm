@@ -1,4 +1,4 @@
-import overpy_mod as overpy
+import overpy
 import psycopg2
 from collections import OrderedDict
 import urllib2

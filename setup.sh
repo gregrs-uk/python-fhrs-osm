@@ -7,6 +7,7 @@ then
     exit 1
 fi
 
+pip install overpy || exit 1
 pip install psycopg2 || exit 1
 pip install shapely || exit 1
 dropdb --if-exists fhrs || exit 1
