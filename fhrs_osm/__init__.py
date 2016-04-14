@@ -533,8 +533,9 @@ class OSMDataset(object):
         """
 
         # create list of fields still to match for this OSM entity
-        # we need list() to avoid creating an alias to the original list
-        fields_to_check = list(self.field_list)
+        fields_to_check = []
+        for this_field in self.field_list:
+            fields_to_check.append(this_field['name'])
 
         # create a blank dict to store relevant data for this OSM node/way/relation
         # need to keep it in order so we can write it to the database
@@ -551,17 +552,15 @@ class OSMDataset(object):
 
         # start with this record's tags set to None
         for this_field in fields_to_check:
-            record[this_field['name']] = None
+            record[this_field] = None
 
         # iterate through this entity's OSM tags
         for entity_key, entity_value in entity.tags.iteritems():
-            # check list of database fields
-            for this_field in fields_to_check:
-                # if the OSM tag we're checking matches field name, store value in dict
-                if (entity_key == this_field['name']):
-                    record[this_field['name']] = entity_value
-                    # if we found a matching tag, we don't need to check for it again
-                    fields_to_check.remove(this_field)
+            # if the OSM tag is in list of fields to check, store its value in dict
+            if entity_key in fields_to_check:
+                record[entity_key] = entity_value
+                # if we found a matching tag, we don't need to check for it again
+                fields_to_check.remove(entity_key)
 
         # create an SQL statement and matching tuple of values to insert
         values_list = []
