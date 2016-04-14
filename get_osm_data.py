@@ -2,7 +2,7 @@ from fhrs_osm import *
 
 # do we want to use a filtered planet extract file (data/filtered.osm)
 # instead of querying using Overpass API?
-use_xml_file = True
+use_xml_file = False
 
 db = Database(dbname='fhrs')
 con = db.connect()
