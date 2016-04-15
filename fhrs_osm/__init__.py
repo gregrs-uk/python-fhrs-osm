@@ -177,42 +177,28 @@ class Database(object):
 
         sql = ('CREATE VIEW ' + view_name + ' AS\n' +
                'SELECT o."name" as osm_name, f."BusinessName" as fhrs_name,\n' +
-               'CASE WHEN o."fhrs:id" IS NOT NULL and f."FHRSID" IS NOT NULL then \'matched\'\n'
-               'WHEN o."fhrs:id" IS NOT NULL and f."FHRSID" IS NULL then \'mismatch\'\n'
-               'WHEN o."id" IS NULL and f."FHRSID" IS NOT NULL then \'FHRS\'\n'
-               'WHEN o."id" IS NOT NULL and f."FHRSID" IS NULL then \'OSM\'\n'
+               'CASE\n' +
+               '    WHEN o."id" IS NULL AND f."FHRSID" IS NOT NULL THEN \'FHRS\'\n' +
+               '    WHEN o."id" IS NOT NULL AND f."FHRSID" IS NULL THEN\n' +
+               '    CASE\n' +
+               '        WHEN o."fhrs:id" IS NOT NULL THEN \'mismatch\'\n' +
+               '        WHEN o."addr:postcode" IS NOT NULL THEN \'OSM_with_postcode\'\n' +
+               '        ELSE \'OSM_no_postcode\'\n' +
+               '    END\n' +
+               '    WHEN o."fhrs:id" IS NOT NULL AND f."FHRSID" IS NOT NULL THEN\n' +
+               '    CASE\n' +
+               '        WHEN o."addr:postcode" != f."PostCode" OR o."addr:postcode" IS NULL\n' +
+               '            THEN \'matched_postcode_error\'\n' +
+               '        ELSE \'matched\'\n' +
+               '    END\n' +
                'END AS status,\n' +
                'f."PostCode" AS fhrs_postcode, o."addr:postcode" AS osm_postcode,\n' +
                'o."geog" AS osm_geog, f."geog" AS fhrs_geog,\n' +
-               'f."FHRSID",\n' +
+               'f."FHRSID" AS fhrs_fhrsid, o."fhrs:id" AS osm_fhrsid,\n' +
                'o.district_id AS osm_district_id, f.district_id AS fhrs_district_id\n' +
                'FROM ' + fhrs_table + ' AS f\n' +
                'FULL OUTER JOIN ' + osm_table + ' AS o ON f."FHRSID" = o."fhrs:id"\n' +
                'WHERE COALESCE(o.geog, f.geog) IS NOT NULL')
-        cur.execute(sql)
-        self.connection.commit()
-
-    def create_postcode_mismatch_view(self, view_name='postcode_mismatch',
-                                      comparison_view='compare'):
-        """(Re)create database view to show postcode mismatches between FHRS
-        establishments and OSM entities with an fhrs:id tag. Drop any dependent
-        views first.
-
-        view_name (string): name for the view we're creating e.g. 'compare'
-        comparison_view (string): name of the comparison view created using
-            create_comparison_view()
-        """
-
-        cur = self.connection.cursor()
-        cur.execute('drop view if exists ' + view_name + ' cascade')
-        self.connection.commit()
-
-        sql = ('CREATE VIEW ' + view_name + ' AS\n' +
-               'SELECT osm_name, osm_postcode, fhrs_postcode\n'
-               'FROM ' + comparison_view + '\n'
-               'WHERE status = \'matched\' AND osm_postcode != fhrs_postcode\n'
-               'ORDER BY osm_postcode')
-
         cur.execute(sql)
         self.connection.commit()
 
@@ -239,7 +225,8 @@ class Database(object):
                'SELECT o.name AS osm_name, f."BusinessName" AS fhrs_name,\n' +
                'o.id AS osm_id, o.type AS osm_type, f."FHRSID",\n' +
                'f."AddressLine1", f."AddressLine2", \n' +
-               'f."AddressLine3", f."AddressLine4", f."PostCode", \n' +
+               'f."AddressLine3", f."AddressLine4", \n' +
+               'f."PostCode", o."addr:postcode", \n' +
                'ST_Distance(o.geog, f.geog) AS distance_metres,\n' +
                'o.geog AS osm_geog, f.geog AS fhrs_geog,\n' +
                'o.district_id AS osm_district_id, f.district_id AS fhrs_district_id\n' +
@@ -279,20 +266,25 @@ class Database(object):
                "       row_to_json((\n" +
                "           SELECT l FROM (\n" +
                "               SELECT string_agg(\n" +
-               "                   CASE WHEN \"FHRSID\" IS NOT NULL THEN\n" +
+               "                   CASE WHEN fhrs_fhrsid IS NOT NULL THEN\n" +
                "                       CONCAT('<a href=\"" + self.fhrs_est_url_prefix + "', "
-                                             "\"FHRSID\", '" + self.fhrs_est_url_suffix + "\">',\n" +
+                                             "fhrs_fhrsid, '" + self.fhrs_est_url_suffix + "\">',\n" +
                "                              COALESCE(osm_name, fhrs_name),\n" +
                "                              '</a> (', status, ')')\n" +
-               "                   WHEN \"FHRSID\" IS NULL THEN\n" +
+               "                   WHEN fhrs_fhrsid IS NULL THEN\n" +
                "                       CONCAT(COALESCE(osm_name, fhrs_name),\n" +
                "                              ' (', status, ')')\n" +
                "                   END, '<br />'\n" +
                "               ) AS list,\n" +
                "               COUNT(CASE WHEN status = 'matched' THEN 1 END) AS matched,\n" +
+               "               COUNT(CASE WHEN status = 'matched_postcode_error' THEN 1 END)\n" +
+               "                   AS matched_postcode_error,\n" +
                "               COUNT(CASE WHEN status = 'mismatch' THEN 1 END) AS mismatch,\n" +
                "               COUNT(CASE WHEN status = 'FHRS' THEN 1 END) AS fhrs,\n" +
-               "               COUNT(CASE WHEN status = 'OSM' THEN 1 END) AS osm\n" +
+               "               COUNT(CASE WHEN status = 'OSM_with_postcode' THEN 1 END)\n" +
+               "                   AS osm_with_postcode,\n" +
+               "               COUNT(CASE WHEN status = 'OSM_no_postcode' THEN 1 END)\n" +
+               "                   AS osm_no_postcode\n" +
                "           ) AS l\n" +
                "       )) AS properties\n" +
                "       FROM " + view_name + " AS lg\n" +
@@ -327,28 +319,27 @@ class Database(object):
                "       ST_AsGeoJSON(osm_geog)::json AS geometry,\n" +
                "       row_to_json((\n" +
                "           SELECT l FROM (\n" +
-               "               SELECT (\n" +
-               "                   CONCAT('OSM: <a href=\"" + self.osm_url_prefix + "',\n" +
-               "                          TRIM(TRAILING ' ' FROM osm_type),\n" +
-               "                          '/', osm_id, '\">', osm_name, '</a>'\n" +
-               "                          '<br />FHRS: <a href=\"" + self.fhrs_est_url_prefix + "',\n" +
-               "                          \"FHRSID\", '" + self.fhrs_est_url_suffix + "\">', fhrs_name,\n" +
-               "                          '</a><br /><a href=\"" + self.josm_url_prefix + "',"
-               "                          'load_object?objects=', substring(osm_type from 1 for 1),\n" +
-               "                          osm_id, '&addtags=fhrs:id=', \"FHRSID\",\n" +
-               "                          CASE WHEN \"AddressLine1\" IS NOT NULL THEN\n" +
-               "                              CONCAT('%7Cfixme:addr1=', \"AddressLine1\") END,\n" +
-               "                          CASE WHEN \"AddressLine2\" IS NOT NULL THEN\n" +
-               "                              CONCAT('%7Cfixme:addr2=', \"AddressLine2\") END,\n" +
-               "                          CASE WHEN \"AddressLine3\" IS NOT NULL THEN\n" +
-               "                              CONCAT('%7Cfixme:addr3=', \"AddressLine3\") END,\n" +
-               "                          CASE WHEN \"AddressLine4\" IS NOT NULL THEN\n" +
-               "                              CONCAT('%7Cfixme:addr3=', \"AddressLine4\") END,\n" +
-               "                          CASE WHEN \"PostCode\" IS NOT NULL THEN\n" +
-               "                              CONCAT('%7Caddr:postcode=', \"PostCode\") END,\n" +
-               "                          '%7Csource:addr=FHRS Open Data',\n" +
-               "                          '\">Add tags in JOSM</a>')\n" +
-               "               ) AS text\n" +
+               "               SELECT CONCAT('OSM: <a href=\"" + self.osm_url_prefix + "',\n" +
+               "                   TRIM(TRAILING ' ' FROM osm_type),\n" +
+               "                   '/', osm_id, '\">', osm_name, '</a>'\n" +
+               "                   '<br />FHRS: <a href=\"" + self.fhrs_est_url_prefix + "',\n" +
+               "                   \"FHRSID\", '" + self.fhrs_est_url_suffix + "\">', fhrs_name,\n" +
+               "                   '</a><br /><a href=\"" + self.josm_url_prefix + "',"
+               "                   'load_object?objects=', substring(osm_type from 1 for 1),\n" +
+               "                   osm_id, '&addtags=fhrs:id=', \"FHRSID\",\n" +
+               "                   CASE WHEN \"AddressLine1\" IS NOT NULL THEN\n" +
+               "                       CONCAT('%7Cfixme:addr1=', \"AddressLine1\") END,\n" +
+               "                   CASE WHEN \"AddressLine2\" IS NOT NULL THEN\n" +
+               "                       CONCAT('%7Cfixme:addr2=', \"AddressLine2\") END,\n" +
+               "                   CASE WHEN \"AddressLine3\" IS NOT NULL THEN\n" +
+               "                       CONCAT('%7Cfixme:addr3=', \"AddressLine3\") END,\n" +
+               "                   CASE WHEN \"AddressLine4\" IS NOT NULL THEN\n" +
+               "                       CONCAT('%7Cfixme:addr3=', \"AddressLine4\") END,\n" +
+               "                   CASE WHEN \"PostCode\" IS NOT NULL THEN\n" +
+               "                       CONCAT('%7Caddr:postcode=', \"PostCode\") END,\n" +
+               "                   '%7Csource:addr=FHRS Open Data',\n" +
+               "                   '\">Add tags in JOSM</a>') AS text,\n" +
+               "               \"addr:postcode\" as osm_postcode \n" +
                "           ) AS l\n" +
                "       )) AS properties\n" +
                "       FROM " + view_name + " AS lg\n" +
@@ -397,21 +388,29 @@ class Database(object):
 
         cur = self.connection.cursor()
 
-        sql = ('SELECT status, count(status) FROM compare\n' +
+        sql = ('SELECT status, COUNT(status) FROM compare\n' +
                'WHERE COALESCE(osm_district_id, fhrs_district_id) = %s\n' +
                'GROUP BY status')
         values = (district_id,)
         cur.execute(sql, values)
 
         # default values
-        s = {'OSM': 0, 'FHRS': 0, 'matched': 0, 'mismatch': 0}
+        s = {'OSM_with_postcode': 0, # OSM without valid fhrs:id but with postcode
+             'OSM_no_postcode': 0, # OSM without valid fhrs:id or postcode
+             'FHRS': 0, # FHRS establishment without matching OSM node/way
+             'matched': 0, # OSM with fhrs:id that matches an FHRS establishment
+             'matched_postcode_error': 0, # OSM with fhrs:id that matches an FHRS establishment
+                                         # but has no postcode or a mismatching one
+             'mismatch': 0} # OSM with fhrs:id that doesn't match an FHRS establishment
 
         # set values in dict
         for row in cur.fetchall():
             s[row[0]] = row[1]
 
-        s['total_OSM'] = s['OSM'] + s['matched'] + s['mismatch']
-        s['total_FHRS'] = s['FHRS'] + s['matched']
+        s['total_OSM'] = (s['OSM_with_postcode'] + s['OSM_no_postcode'] +
+                          s['matched'] + s['matched_postcode_error'] + s['mismatch'])
+        s['OSM_matched_or_postcode'] = s['matched'] + s['OSM_with_postcode']
+        s['total_FHRS'] = s['FHRS'] + s['matched'] + s['matched_postcode_error']
 
         # avoid dividing by zero
         if s['total_FHRS'] != 0:
@@ -419,6 +418,13 @@ class Database(object):
             s['FHRS_matched_pc'] = float(s['matched']) / s['total_FHRS'] * 100
         else:
             s['FHRS_matched_pc'] = float(0)
+
+        # avoid dividing by zero
+        if s['total_OSM'] != 0:
+            # cast to float to prevent result of division being rounded to integer
+            s['OSM_matched_or_postcode_pc'] = float(s['OSM_matched_or_postcode']) / s['total_OSM'] * 100
+        else:
+            s['OSM_matched_or_postcode_pc'] = float(0)
 
         return s
 

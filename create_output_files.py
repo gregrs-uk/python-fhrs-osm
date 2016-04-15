@@ -57,20 +57,42 @@ for dist in districts:
 	        <td>""" + str(stats['total_FHRS']) + """</td>
 	    </tr>
 	    <tr>
-	        <td style='color: #0f0;'>OSM nodes/ways with valid fhrs:id</td>
+	        <td>Total number of relevant OSM nodes/ways</td>
+	        <td>""" + str(stats['total_OSM']) + """</td>
+	    </tr>
+	    <tr>
+	        <td style='color: green'>OSM nodes/ways with valid fhrs:id and matching postcode</td>
 	        <td>""" + str(stats['matched']) + """</td>
 	    </tr>
 	    <tr>
-	        <td style='color: #f00;'>OSM nodes/ways with invalid fhrs:id</td>
+	        <td><span style='color: yellow; background-color: gray'>
+            Relevant OSM nodes/ways with postcode but no valid fhrs:id</span></td>
+	        <td>""" + str(stats['OSM_with_postcode']) + """</td>
+	    </tr>
+	    <tr>
+	        <td style='color: orange;'>Relevant OSM nodes/ways without fhrs:id or postcode</td>
+	        <td>""" + str(stats['OSM_no_postcode']) + """</td>
+	    </tr>
+        <tr>
+	        <td style='color: red;'>OSM nodes/ways with valid fhrs:id but mismatched/missing postcode</td>
+	        <td>""" + str(stats['matched_postcode_error']) + """</td>
+	    </tr>
+	    <tr>
+	        <td style='color: red;'>OSM nodes/ways with invalid fhrs:id</td>
 	        <td>""" + str(stats['mismatch']) + """</td>
 	    </tr>
 	    <tr>
-	        <td style='color: #00f;'>FHRS establishments with no matching OSM node/way</td>
+	        <td style='color: blue;'>FHRS establishments with no matching OSM node/way</td>
 	        <td>""" + str(stats['FHRS']) + """</td>
 	    </tr>
 	    <tr>
-	        <td style='color: #0f0;'>Percentage of FHRS establishments matched</td>
+	        <td style='color: green;'>Percentage of FHRS establishments successfully matched</td>
 	        <td>""" + '%.1f' % stats['FHRS_matched_pc'] + """%</td>
+	    </tr>
+	    <tr>
+	        <td>Percentage of relevant OSM nodes/ways with <span style='color: green'>FHRS match</span>
+            or <span style='color: yellow; background-color: gray'>postcode</span></td>
+	        <td>""" + '%.1f' % stats['OSM_matched_or_postcode_pc'] + """%</td>
 	    </tr>
 	</table>
 
@@ -143,8 +165,8 @@ for dist in districts:
 
 		var geojsonMarkerOptions = {
             radius: 5,
-            color: "#000",
-            fillColor: "#ff0",
+            color: "black",
+            fillColor: "cyan",
             weight: 1,
             opacity: 1,
             fillOpacity: 0.5
@@ -165,18 +187,22 @@ for dist in districts:
                     layer.bindPopup(feature.properties.list);
                 },
                 style: function(feature) {
-                    if (feature.properties.mismatch > 0) {
-                        // at least one mismatch
-                        return {fillColor: "#f00"};
-                    } else if (feature.properties.osm > 0) {
+                    if (feature.properties.mismatch +
+                        feature.properties.matched_postcode_error > 0) {
+                        // at least one mismatch or postcode error
+                        return {fillColor: "red"};
+                    } else if (feature.properties.osm_no_postcode > 0) {
+                        // at least one OSM to be matched without postcode
+                        return {fillColor: "orange"};
+                    } else if (feature.properties.osm_with_postcode > 0) {
                         // at least one OSM to be matched
-                        return {fillColor: "#ff0"};
+                        return {fillColor: "yellow"};
                     } else if (feature.properties.fhrs > 0) {
                         // at least one FHRS to be matched
-                        return {fillColor: "#00f"};
+                        return {fillColor: "blue"};
                     } else {
                         // all matched
-                        return {fillColor: "#0f0"};
+                        return {fillColor: "lime"};
                     }
                 }
             }).addTo(overview_map);
@@ -189,6 +215,16 @@ for dist in districts:
                 },
                 onEachFeature: function (feature, layer) {
                     layer.bindPopup(feature.properties.text);
+                },
+                style: function(feature) {
+                    if (feature.properties.osm_postcode != null) {
+                        // OSM entity has a postcode
+                        return {fillColor: "yellow"};
+                    }
+                    else {
+                        // OSM entity has no postcode
+                        return {fillColor: "orange"};
+                    }
                 }
             }).addTo(suggest_matches_map);
         });
