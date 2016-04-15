@@ -25,7 +25,9 @@ for dist in districts:
     f.write(db.get_district_boundary_geojson(district_id=dist['id']))
     f.close
 
-    stats = db.get_district_stats(dist['id'])
+    stats = db.get_district_stats(district_id=dist['id'])
+    postcode_errors = db.get_district_postcode_errors(district_id=dist['id'])
+    mismatches = db.get_district_mismatches(district_id=dist['id'])
 
     html = ("""
 <!DOCTYPE html>
@@ -101,6 +103,46 @@ for dist in districts:
 
 	<h3>Suggested matches</h3>
 	<div id="suggest_matches_map" style="width: 800px; height: 600px"></div>
+
+    <h3>Postcodes missing/mismatched</h3>""")
+
+    if len(postcode_errors) < 1:
+        html += "<p>There are no postcode errors to show for this district.</p>"
+    else:
+        html += ('<p>Below is a list of OSM entities which have a valid fhrs:id tag but a missing/mismatched addr:postcode. ' +
+                 'N.B. This does not necessarily indicate an error with the OSM data.</p>' +
+                 '<table>\n' +
+                 '    <tr><th>Name</th><th>OSM addr:postcode</th><th>FHRS postcode</th><th></th></tr>\n')
+        for this_error in postcode_errors:
+            html += ('<tr><td><a href="' + db.osm_url_prefix + this_error['osm_type'] + '/' +
+                     str(this_error['osm_id']) + '">' + this_error['osm_name'] + '</a></td>\n' +
+                     '<td>' + this_error['osm_postcode'] + '</td>\n' +
+                     '<td>' + this_error['fhrs_postcode']+ '</td>\n' +
+                     '<td><a href=\"' + db.josm_url_prefix + 'load_object?objects=' +
+                     this_error['osm_ident'] + '\">Edit in JOSM</a></td></tr>\n')
+        html += '</table>'
+
+    html += ("""
+    <h3>Mismatched fhrs:id tags</h3>""")
+
+    if len(mismatches) < 1:
+        html += "<p>There are no fhrs:id mismatches to show for this district.</p>"
+    else:
+        html += ('<p>Below is a list of OSM entities which have an fhrs:id tag for which there is no matching ' +
+                 'FHRS establishment. This may indicate an establishment which has closed, but please check ' +
+                 'before making any changes to the OSM data.</p>' +
+                 '<table>\n' +
+                 '    <tr><th>Name</th><th>FHRS ID</th><th></th></tr>\n')
+        for this_error in mismatches:
+            html += ('<tr><td><a href="' + db.osm_url_prefix + this_error['osm_type'] + '/' +
+                     str(this_error['osm_id']) + '">' + this_error['osm_name'] + '</a></td>\n' +
+                     '<td><a href=\"' + db.fhrs_est_url_prefix + str(this_error['osm_fhrsid']) +
+                     db.fhrs_est_url_suffix + '\">' + str(this_error['osm_fhrsid']) + '</a></td>\n' +
+                     '<td><a href=\"' + db.josm_url_prefix + 'load_object?objects=' +
+                     this_error['osm_ident'] + '\">Edit in JOSM</a></td></tr>\n')
+        html += '</table>'
+
+    html += ("""
 
 	<p>Generated using <a href="https://github.com/gregrs-uk/python-fhrs-osm">""" +
 	"""python-fhrs-osm</a> on """ +

@@ -34,8 +34,6 @@ place the four `district_borough_unitary_region.*` files in the `shapefiles` dir
 
 ## Usage
 * Open `html/index.html` in a browser to show a list of districts. Click on a district to show a page with statistics and maps (see below) for a particular district
-* The `compare` database view can be used to compare FHRS with OSM data and find OSM entities with an `fhrs:id` tag for which the postcode is missing or does not match the FHRS one
-* The `suggest_matches` database view can be used to suggest matching FHRS establishments for OSM entities.
 
 ## Example
 

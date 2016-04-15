@@ -1,5 +1,6 @@
 import overpy
 import psycopg2
+from psycopg2.extras import DictCursor
 from collections import OrderedDict
 import urllib2
 import xml.etree.ElementTree
@@ -194,6 +195,7 @@ class Database(object):
                'END AS status,\n' +
                'f."PostCode" AS fhrs_postcode, o."addr:postcode" AS osm_postcode,\n' +
                'o."geog" AS osm_geog, f."geog" AS fhrs_geog,\n' +
+               'o.id AS osm_id, o.type AS osm_type,\n' +
                'f."FHRSID" AS fhrs_fhrsid, o."fhrs:id" AS osm_fhrsid,\n' +
                'o.district_id AS osm_district_id, f.district_id AS fhrs_district_id\n' +
                'FROM ' + fhrs_table + ' AS f\n' +
@@ -427,6 +429,53 @@ class Database(object):
             s['OSM_matched_or_postcode_pc'] = float(0)
 
         return s
+
+    def get_district_postcode_errors(self, comparison_view='compare', district_id=182):
+        """Get OSM entities which have an fhrs:id that matches an FHRS
+        establishment but has no postcode or a mismatching one.
+
+        district_id (integer): Boundary Line district ID
+        Returns dict
+        """
+
+        dict_cur = self.connection.cursor(cursor_factory=DictCursor)
+
+        sql = ('SELECT osm_name, osm_postcode, fhrs_postcode,\n' +
+               'TRIM(TRAILING ' ' FROM osm_type) as osm_type, osm_id,\n' +
+               'CONCAT(substring(osm_type FROM 1 FOR 1), osm_id) AS osm_ident, osm_fhrsid\n' +
+               'FROM compare\n' +
+               'WHERE status = \'matched_postcode_error\' AND osm_district_id = %s')
+        values = (district_id,)
+        dict_cur.execute(sql, values)
+
+        result = []
+        for row in dict_cur.fetchall():
+            result.append(row)
+
+        return result
+
+    def get_district_mismatches(self, comparison_view='compare', district_id=182):
+        """Get OSM entities which have an fhrs:id for which there is no match
+        in the database.
+
+        district_id (integer): Boundary Line district ID
+        Returns dict
+        """
+
+        dict_cur = self.connection.cursor(cursor_factory=DictCursor)
+
+        sql = ('SELECT osm_name, osm_fhrsid, TRIM(TRAILING ' ' FROM osm_type) as osm_type,\n' +
+               'osm_id, CONCAT(substring(osm_type FROM 1 FOR 1), osm_id) AS osm_ident\n' +
+               'FROM compare\n' +
+               'WHERE status = \'mismatch\' AND osm_district_id = %s')
+        values = (district_id,)
+        dict_cur.execute(sql, values)
+
+        result = []
+        for row in dict_cur.fetchall():
+            result.append(row)
+
+        return result
 
 
 class OSMDataset(object):
