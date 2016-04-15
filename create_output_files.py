@@ -38,7 +38,7 @@ for dist in districts:
 
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-	<link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.css" />
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/leaflet.css" />
 
     <style>
         table, th, td {
@@ -148,8 +148,8 @@ for dist in districts:
 	"""python-fhrs-osm</a> on """ +
 	datetime.strftime(datetime.now(), '%a %d %b %Y at %H:%M') + """</p>
 
-	<script src="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.js"></script>
-	<script src="http://code.jquery.com/jquery-2.1.0.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/leaflet.js"></script>
+	<script src="https://code.jquery.com/jquery-2.1.0.min.js"></script>
 
 	<script>
 
@@ -161,7 +161,7 @@ for dist in districts:
 
         // add OSM tile layer to each map
 
-		L.tileLayer('http://a.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+		L.tileLayer('https://a.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 			maxZoom: 18,
 			attribution: '&copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ' +
 				'Contains <a href="http://www.ordnancesurvey.co.uk">Ordnance Survey</a> and ' +
@@ -169,7 +169,7 @@ for dist in districts:
 				'data &copy Crown copyright and database right'
 		}).addTo(overview_map);
 
-		L.tileLayer('http://a.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+		L.tileLayer('https://a.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 			maxZoom: 18,
 			attribution: '&copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ' +
 				'Contains <a href="http://www.ordnancesurvey.co.uk">Ordnance Survey</a> and ' +
