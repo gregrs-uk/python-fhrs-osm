@@ -198,6 +198,9 @@ for dist in districts:
                 style: geojsonBoundaryOptions
             }).addTo(suggest_matches_map);
 
+            overviewBoundaryLayer.bringToBack();
+            matchesBoundaryLayer.bringToBack();
+
             overview_map.fitBounds(overviewBoundaryLayer.getBounds());
             suggest_matches_map.fitBounds(matchesBoundaryLayer.getBounds());
         });
@@ -248,6 +251,8 @@ for dist in districts:
                     }
                 }
             }).addTo(overview_map);
+
+            overviewMarkerLayer.bringToFront();
         });
 
         $.getJSON(suggest_matches_json, function(data) {
@@ -269,6 +274,8 @@ for dist in districts:
                     }
                 }
             }).addTo(suggest_matches_map);
+
+            matchesMarkerLayer.bringToFront();
         });
 
 	</script>

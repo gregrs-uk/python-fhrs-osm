@@ -370,8 +370,10 @@ class Database(object):
                "   SELECT 'FeatureCollection' AS type, array_to_json(array_agg(f)) AS features\n" +
                "   FROM (\n" +
                "       SELECT 'Feature' AS type,\n" +
-               "       ST_AsGeoJSON(geom)::json AS geometry\n" +
-               "       FROM " + districts_table + " AS lg\n" +
+               "       ST_AsGeoJSON(ST_Boundary(poly_geom))::json AS geometry FROM (\n" +
+               "           SELECT gid, geom AS poly_geom\n" +
+               "           FROM " + districts_table + " AS lg\n" +
+               "       ) AS polygons\n" +
                "       WHERE gid = %s\n" +
                "   ) AS f\n" +
                ") AS fc;")
