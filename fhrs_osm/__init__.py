@@ -146,7 +146,12 @@ class Database(object):
 
         cur = self.connection.cursor()
 
-        sql = ('SELECT district_id, name FROM (\n' +
+        sql = ('SELECT district_id,\n' +
+               # clean up the name of the district
+               'regexp_replace(name, \'^County of |^City of |^The City of | City$|' +
+                   '^City and County of the | District| \(B\)$| London Boro$\',' +
+                   '\'\', \'g\') AS new_name\n' +
+               'FROM (\n' +
                '    SELECT district_id, count(district_id) AS num\n'
                '    FROM ' + fhrs_table + '\n' +
                '    GROUP BY district_id\n' +
