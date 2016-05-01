@@ -3,3 +3,4 @@ shapefiles/*
 !shapefiles/*.md
 html/*
 data/*
+tags
