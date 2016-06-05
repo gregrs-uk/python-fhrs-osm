@@ -115,9 +115,9 @@ for dist in districts:
                  '    <tr><th>Name</th><th>OSM addr:postcode</th><th>FHRS postcode</th><th></th></tr>\n')
         for this_error in postcode_errors:
             html += ('<tr><td><a href="' + db.osm_url_prefix + this_error['osm_type'] + '/' +
-                     str(this_error['osm_id']) + '">' + this_error['osm_name'] + '</a></td>\n' +
-                     '<td>' + this_error['osm_postcode'] + '</td>\n' +
-                     '<td>' + this_error['fhrs_postcode']+ '</td>\n' +
+                     str(this_error['osm_id']) + '">' + str(this_error['osm_name']) + '</a></td>\n' +
+                     '<td>' + str(this_error['osm_postcode']) + '</td>\n' +
+                     '<td>' + str(this_error['fhrs_postcode'])+ '</td>\n' +
                      '<td><a href=\"' + db.josm_url_prefix + 'load_object?objects=' +
                      this_error['osm_ident'] + '\">Edit in JOSM</a></td></tr>\n')
         html += '</table>'

@@ -448,7 +448,7 @@ class Database(object):
         dict_cur = self.connection.cursor(cursor_factory=DictCursor)
 
         sql = ('SELECT osm_name, osm_postcode, fhrs_postcode,\n' +
-               'TRIM(TRAILING ' ' FROM osm_type) as osm_type, osm_id,\n' +
+               'TRIM(TRAILING \' \' FROM osm_type) as osm_type, osm_id,\n' +
                'CONCAT(substring(osm_type FROM 1 FOR 1), osm_id) AS osm_ident, osm_fhrsid\n' +
                'FROM compare\n' +
                'WHERE status = \'matched_postcode_error\' AND osm_district_id = %s')
