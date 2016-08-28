@@ -4,3 +4,4 @@ shapefiles/*
 html/*
 data/*
 tags
+*.swp
