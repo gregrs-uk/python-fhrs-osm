@@ -1,10 +1,7 @@
 from fhrs_osm import *
+import config
 
-# do we want to use a filtered planet extract file (data/filtered.osm)
-# instead of querying using Overpass API?
-use_xml_file = False
-
-db = Database(dbname='fhrs')
+db = Database(dbname=config.dbname)
 con = db.connect()
 
 fhrs = FHRSDataset()
@@ -16,7 +13,7 @@ fhrs_bbox = fhrs.get_corrected_bbox(connection=con)
 osm = OSMDataset()
 print "Creating OSM database table"
 osm.create_table(connection=con)
-if use_xml_file is True:
+if config.use_xml_file is True:
     print "Parsing OSM XML file"
     result = osm.parse_xml_file('data/filtered.osm')
     print "Writing OSM data to database"

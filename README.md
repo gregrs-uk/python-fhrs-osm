@@ -18,17 +18,17 @@ place the four `district_borough_unitary_region.*` files in the `shapefiles` dir
     * Install overpy module
     * Install psycopg2 module
     * Install shapely module
-    * (Re)create `fhrs` PostgreSQL database
+    * (Re)create PostgreSQL database (called `fhrs` by default, see `config.py`)
     * Enable PostGIS and fuzzystrmatch extensions
     * Run `import_bline_districts.sh` to import district boundaries from shapefiles
     * Run `python get_fhrs_data.py` to download FHRS data and upload to the PostgreSQL database
-        * By default, data for the Rugby and Warwick areas are downloaded, but this can be altered in `get_fhrs_data.py`
+        * By default, data for the Rugby and Warwick areas are downloaded, but this can be altered in `config.py`
         * FHRS data is downloaded one authority at a time
     * Run `python get_osm_data.py` to download OpenStreetMap data and upload to the PostgreSQL database
         * OSM ways are simplified to a single point at the center of the way.
         * By default, data is downloaded using Overpass API to match the bounding box of the FHRS data present in the database. The bounding box can be altered in `get_osm_data.py`
         * The OSM tag/value pairs to query can also be modified. Please see the docstrings in `fhrs_osm/__init__.py` for details
-        * If OSM data for a large geographical area is required, it's best to filter a PBF file (e.g. one obtained from [GeoFabrik](http://download.geofabrik.de/europe/great-britain.html)) using `filter-osm.sh`. Set `use_xml_file = True` in `get_osm_data.py` to parse the filtered file rather than querying Overpass API
+        * If OSM data for a large geographical area is required, it's best to filter a PBF file (e.g. one obtained from [GeoFabrik](http://download.geofabrik.de/europe/great-britain.html)) using `filter-osm.sh`. Set `use_xml_file=True` in `config.py` to parse the filtered file rather than querying Overpass API
     * Run `python process_data.py` to compute which district FHRS establishments and OSM entities are in and to create the database views
     * Run `python create_output_data.py` to create HTML and GeoJSON files for each district which contains more than a certain threshold of FHRS data
 

@@ -1,7 +1,8 @@
 from fhrs_osm import *
 from datetime import datetime
+import config
 
-db = Database()
+db = Database(dbname=config.dbname)
 db.connect()
 
 print "Getting list of districts which contain some data"

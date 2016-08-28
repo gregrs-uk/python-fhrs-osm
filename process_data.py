@@ -1,6 +1,7 @@
 from fhrs_osm import *
+import config
 
-db = Database()
+db = Database(config.dbname)
 db.connect()
 
 # compute districts

@@ -1,6 +1,7 @@
 from fhrs_osm import *
+import config
 
-db = Database(dbname='fhrs')
+db = Database(dbname=config.dbname)
 con = db.connect()
 
 # get FHRS data
@@ -13,12 +14,17 @@ xmlstring = fhrs.download_authorities()
 print "Writing data for FHRS authorities"
 fhrs.write_authorities(xmlstring, con)
 print "Querying database for authority IDs"
-# remove region_name argument below to get authorities in all regions
-# (except Northern Ireland because OS Boundary Line does not cover Northern Ireland)
-fhrs_authorities = fhrs.get_authorities(connection=con, region_name='West Midlands')
 
-# comment out line below to get data for all authorities, not just Rugby & Warwick
-fhrs_authorities = [371, 373]
+# read the mode from the config file to work out what will be downloaded
+if (config.get_fhrs_mode == 'small_test'):
+    fhrs_authorities = [371, 373]
+elif (config.get_fhrs_mode == 'west_mids'):
+    fhrs_authorities = fhrs.get_authorities(connection=con, region_name='West Midlands')
+elif (config.get_fhrs_mode == 'full'):
+    fhrs_authorities = fhrs.get_authorities(connection=con)
+else:
+    raise RuntimeError("Bad value for get_fhrs_mode in config.py\n"
+                       "Should be 'small_test', 'west_mids' or 'full'")
 
 print "Creating FHRS establishment database table"
 fhrs.create_establishment_table(connection=con)
