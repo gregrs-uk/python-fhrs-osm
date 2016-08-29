@@ -1,7 +1,7 @@
 # config file to be read by both Python and BASH
 
 # postgresql database name
-dbname="gregrs_fhrs"
+dbname="fhrs"
 
 # fhrs download mode
 # small_test = Rugby and Warwick, west_mids = West Midlands, full = All regions
