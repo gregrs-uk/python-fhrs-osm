@@ -5,14 +5,14 @@ dbname="gregrs_fhrs"
 
 # fhrs download mode
 # small_test = Rugby and Warwick, west_mids = West Midlands, full = All regions
-get_fhrs_mode="small_test"
+get_fhrs_mode="full"
 
 # do we want to use a filtered planet extract file (data/filtered.osm)
 # instead of querying using Overpass API?
 use_xml_file=True
 
-# path of pbf file if we're using a planet extract
+# relative path of pbf file if we're using a planet extract
 input_pbf="data/great-britain-latest.osm.pbf"
 
-# path of osmosis binary if we're using a planet extract
-osmosis_bin="~/osmosis/bin/osmosis"
+# absolute path (no ~) of osmosis binary if we're using a planet extract
+osmosis_bin="/home/gregrs/osmosis/bin/osmosis"
