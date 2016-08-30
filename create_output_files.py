@@ -146,7 +146,7 @@ for dist in districts:
                  '    <tr><th>Name</th><th>FHRS ID</th><th></th></tr>\n')
         for this_error in mismatches:
             html += ('<tr><td><a href="' + db.osm_url_prefix + this_error['osm_type'] + '/' +
-                     str(this_error['osm_id']) + '">' + this_error['osm_name'] + '</a></td>\n' +
+                     str(this_error['osm_id']) + '">' + str(this_error['osm_name']) + '</a></td>\n' +
                      '<td><a href=\"' + db.fhrs_est_url_prefix + str(this_error['osm_fhrsid']) +
                      db.fhrs_est_url_suffix + '\">' + str(this_error['osm_fhrsid']) + '</a></td>\n' +
                      '<td><a href=\"' + db.josm_url_prefix + 'load_object?objects=' +
