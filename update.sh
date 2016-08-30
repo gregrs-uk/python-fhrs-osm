@@ -10,10 +10,10 @@ wget http://download.geofabrik.de/europe/great-britain-latest.osm.pbf \
 	|| exit 1
 rm great-britain-latest.osm.pbf.old
 
+cd ~/python-fhrs-osm || exit 1
+
 echo "Filtering OSM data"
 ./filter-osm.sh || exit 1
-
-cd ~/python-fhrs-osm || exit 1
 
 python get_fhrs_data.py || exit 1
 python get_osm_data.py || exit 1
