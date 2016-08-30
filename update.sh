@@ -1,7 +1,7 @@
 #!/bin/bash
 
 source ~/gregrs-python-env/bin/activate || exit 1
-source config.py || exit 1
+source ~/python-fhrs-osm/config.py || exit 1
 
 echo "Downloading latest OSM data"
 cd ~/python-fhrs-osm/data || exit 1
