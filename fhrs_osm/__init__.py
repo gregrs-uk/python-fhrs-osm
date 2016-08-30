@@ -240,8 +240,9 @@ class Database(object):
                'FROM ' + osm_table + ' AS o\n' +
                'INNER JOIN ' + fhrs_table + ' AS f\n' +
                # escape % with another %
-               'ON (f."BusinessName" LIKE \'%%\' || o.name || \'%%\'\n' +
-               '    OR levenshtein_less_equal(o.name, f."BusinessName", %s) < %s)\n' +
+               'ON o.district_id = f.district_id\n' +
+               'AND (f."BusinessName" LIKE \'%%\' || o.name || \'%%\'\n' +
+               '     OR levenshtein_less_equal(o.name, f."BusinessName", %s) < %s)\n' +
                'AND ST_Distance(o.geog, f.geog) < %s\n' +
                'WHERE o."fhrs:id" IS NULL\n' +
                'ORDER BY o.name')
