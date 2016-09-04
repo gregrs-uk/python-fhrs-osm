@@ -1,6 +1,10 @@
 # [python-fhrs-osm](http://github.com/gregrs-uk/python-fhrs-osm)
 Python tools for downloading and comparing Food Hygiene Rating Scheme (FHRS) and OpenStreetMap (OSM) data and finding possible matches between it, together with Leaflet slippy maps for visualising the data.
 
+## Maps and statistics for Great Britain
+
+Please follow the link for [FHRS comparison maps and statistics for Great Britain](http://gregrs.dev.openstreetmap.org/fhrs/), kindly hosted on the OpenStreetMap dev server and updated weekly.
+
 ## Features
 * Download OpenStreetMap and FHRS data and parse it into a PostgreSQL/PostGIS database
 * Use database views to compare OpenStreetMap and FHRS data and find anomalies, and to find possible matches between OSM nodes/ways and FHRS establishments based on proximity and similarity of names
@@ -34,10 +38,6 @@ place the four `district_borough_unitary_region.*` files in the `shapefiles` dir
 
 ## Usage
 * Open `html/index.html` in a browser to show a list of districts. Click on a district to show a page with statistics and maps (see below) for a particular district
-
-## Example
-
-You can see [example HTML files for the West Midlands](https://dl.dropboxusercontent.com/u/42978572/FHRS%20West%20Midlands/index.html). N.B. These may not be updated regularly with live data.
 
 ## Overview map
 
