@@ -145,9 +145,16 @@ for dist in districts:
 
     html += ("""
 
+	<hr>
+
 	<p>Generated using <a href="https://github.com/gregrs-uk/python-fhrs-osm">""" +
 	"""python-fhrs-osm</a> on """ +
-	datetime.strftime(datetime.now(), '%a %d %b %Y at %H:%M') + """</p>
+	datetime.strftime(datetime.now(), '%a %d %b %Y at %H:%M') + """.</p>
+
+	<p><a href="https://github.com/gregrs-uk/python-fhrs-osm/issues">Report bug or suggest feature</a></p>
+
+	<p>Contains <a href="http://www.ordnancesurvey.co.uk">Ordnance Survey</a> data
+	&copy Crown copyright and database right</p>
 
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/leaflet.js"></script>
 	<script src="https://code.jquery.com/jquery-2.1.0.min.js"></script>
@@ -317,6 +324,14 @@ for dist in districts:
 
 html += ("""
     </ul>
+
+<hr>
+
+<p>Generated using <a href="https://github.com/gregrs-uk/python-fhrs-osm">""" +
+"""python-fhrs-osm</a> on """ +
+datetime.strftime(datetime.now(), '%a %d %b %Y at %H:%M') + """.</p>
+
+<p><a href="https://github.com/gregrs-uk/python-fhrs-osm/issues">Report bug or suggest feature</a></p>
 
 <p>Contains <a href="http://www.ordnancesurvey.co.uk">Ordnance Survey</a> data
 &copy Crown copyright and database right</p>
