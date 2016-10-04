@@ -2,8 +2,15 @@
 
 source config.py
 
-filter_list="amenity=fast_food,restaurant,cafe,pub,bar,nightclub,hospital,\
-school,college tourism=hotel,guest_house"
+filter_list="amenity=bar,cafe,care_home,childcare,church_hall,cinema,college,\
+community_centre,community_hall,fast_food,fuel,hospital,kindergarten,\
+nightclub,nursing_home,pharmacy,place_of_worship,post_office,pub,restaurant,\
+school,social_club,social_facility,theatre,village_hall \
+club=scouts,social,sport \
+shop=alcohol,bakery,butcher,cheese,chemist,confectionery,convenience,deli,\
+delicatessen,discount,farm,fishmonger,greengrocer,grocery,health_food,\
+newsagent,supermarket,variety_store \
+tourism=hotel,guest_house"
 
 if [ ! -d data ]
 then
