@@ -158,7 +158,7 @@ class Database(object):
                ') AS f\n' +
                'LEFT JOIN ' + districts_table + ' as d ON f.district_id = d.gid\n' +
                'WHERE num >= %s\n' +
-               'ORDER BY name')
+               'ORDER BY new_name')
         values = (threshold,)
         cur.execute(sql, values)
 
