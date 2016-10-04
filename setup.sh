@@ -16,6 +16,10 @@ dropdb --if-exists $dbname || exit 1
 createdb $dbname || exit 1
 psql -d $dbname -c "create extension postgis; create extension fuzzystrmatch;" || exit 1
 ./import_bline_districts.sh || exit 1
+if [[ $use_xml_file == True ]]
+then
+	./filter-osm.sh || exit 1
+fi
 python get_fhrs_data.py || exit 1
 python get_osm_data.py || exit 1
 python process_data.py || exit 1
