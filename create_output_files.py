@@ -9,7 +9,7 @@ print "Getting list of districts which contain some data"
 districts = db.get_inhabited_districts()
 
 for dist in districts:
-    print "Creating GeoJSON and HTML files for " + dist['name']
+    print "Creating GeoJSON, GPX and HTML files for " + dist['name']
 
     filename = 'html/json/overview-' + str(dist['id']) + '.json'
     f = open(filename, 'w')
@@ -24,6 +24,34 @@ for dist in districts:
     filename = 'html/json/boundary-' + str(dist['id']) + '.json'
     f = open(filename, 'w')
     f.write(db.get_district_boundary_geojson(district_id=dist['id']))
+    f.close
+
+    filename = 'html/gpx/fhrs-unmatched-' + str(dist['id']) + '.gpx'
+    f = open(filename, 'w')
+    f.write(db.get_gpx(geog_col='fhrs_geog', name_col='fhrs_name',
+                       view_name='compare', district_id_col='fhrs_district_id',
+                       district_id=dist['id'], status='FHRS'))
+    f.close
+
+    filename = 'html/gpx/osm-unmatched-with-postcode-' + str(dist['id']) + '.gpx'
+    f = open(filename, 'w')
+    f.write(db.get_gpx(geog_col='osm_geog', name_col='osm_name',
+                       view_name='compare', district_id_col='osm_district_id',
+                       district_id=dist['id'], status='OSM_with_postcode'))
+    f.close
+
+    filename = 'html/gpx/osm-unmatched-no-postcode-' + str(dist['id']) + '.gpx'
+    f = open(filename, 'w')
+    f.write(db.get_gpx(geog_col='osm_geog', name_col='osm_name',
+                       view_name='compare', district_id_col='osm_district_id',
+                       district_id=dist['id'], status='OSM_no_postcode'))
+    f.close
+
+    filename = 'html/gpx/suggested-matches-' + str(dist['id']) + '.gpx'
+    f = open(filename, 'w')
+    f.write(db.get_gpx(geog_col='osm_geog', name_col='osm_name',
+                       view_name='suggest_matches', district_id_col='osm_district_id',
+                       district_id=dist['id']))
     f.close
 
     stats = db.get_district_stats(district_id=dist['id'])
@@ -63,57 +91,77 @@ for dist in districts:
     <h1>FHRS/OSM comparison</h1>
     <h2>""" + dist['name'] + """</h2>
 
-	<h3>District statistics</h3>
-	<table>
-	    <tr>
-	        <td>Total number of FHRS establishments</td>
-	        <td>""" + str(stats['total_FHRS']) + """</td>
-	    </tr>
-	    <tr>
-	        <td>Total number of relevant OSM nodes/ways</td>
-	        <td>""" + str(stats['total_OSM']) + """</td>
-	    </tr>
-	    <tr>
-	        <td style='color: green'>OSM nodes/ways with valid fhrs:id and matching postcode</td>
-	        <td>""" + str(stats['matched']) + """</td>
-	    </tr>
-	    <tr>
-	        <td><span style='color: yellow; background-color: gray'>
-            Relevant OSM nodes/ways with postcode but no valid fhrs:id</span></td>
-	        <td>""" + str(stats['OSM_with_postcode']) + """</td>
-	    </tr>
-	    <tr>
-	        <td style='color: orange;'>Relevant OSM nodes/ways without fhrs:id or postcode</td>
-	        <td>""" + str(stats['OSM_no_postcode']) + """</td>
-	    </tr>
+    <h3>District statistics</h3>
+    <table>
         <tr>
-	        <td style='color: red;'>OSM nodes/ways with valid fhrs:id but mismatched/missing postcode</td>
-	        <td>""" + str(stats['matched_postcode_error']) + """</td>
-	    </tr>
-	    <tr>
-	        <td style='color: red;'>OSM nodes/ways with invalid fhrs:id</td>
-	        <td>""" + str(stats['mismatch']) + """</td>
-	    </tr>
-	    <tr>
-	        <td style='color: blue;'>FHRS establishments with no matching OSM node/way</td>
-	        <td>""" + str(stats['FHRS']) + """</td>
-	    </tr>
-	    <tr>
-	        <td style='color: green;'>Percentage of FHRS establishments successfully matched</td>
-	        <td>""" + '%.1f' % stats['FHRS_matched_pc'] + """%</td>
-	    </tr>
-	    <tr>
-	        <td>Percentage of relevant OSM nodes/ways with <span style='color: green'>FHRS match</span>
-            or <span style='color: yellow; background-color: gray'>postcode</span></td>
-	        <td>""" + '%.1f' % stats['OSM_matched_or_postcode_pc'] + """%</td>
-	    </tr>
-	</table>
+            <td>Total number of FHRS establishments</td>
+            <td>""" + str(stats['total_FHRS']) + """</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>Total number of relevant OSM nodes/ways</td>
+            <td>""" + str(stats['total_OSM']) + """</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td style='color: green'>
+                OSM nodes/ways with valid fhrs:id and matching postcode</td>
+            <td>""" + str(stats['matched']) + """</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td><span style='color: yellow; background-color: gray'>
+                Relevant OSM nodes/ways with postcode but no valid fhrs:id</span></td>
+            <td>""" + str(stats['OSM_with_postcode']) + """</td>
+            <td><a href="gpx/osm-unmatched-with-postcode-""" +
+                str(dist['id']) + """.gpx">GPX</a></td>
+        </tr>
+        <tr>
+            <td style='color: orange;'>
+                Relevant OSM nodes/ways without fhrs:id or postcode</td>
+            <td>""" + str(stats['OSM_no_postcode']) + """</td>
+            <td><a href="gpx/osm-unmatched-no-postcode-""" +
+                str(dist['id']) + """.gpx">GPX</a></td>
+        </tr>
+            <tr>
+            <td style='color: red;'>
+                OSM nodes/ways with valid fhrs:id but mismatched/missing postcode</td>
+            <td>""" + str(stats['matched_postcode_error']) + """</td>
+                <td></td>
+        </tr>
+        <tr>
+            <td style='color: red;'>OSM nodes/ways with invalid fhrs:id</td>
+            <td>""" + str(stats['mismatch']) + """</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td style='color: blue;'>FHRS establishments with no matching OSM node/way</td>
+            <td>""" + str(stats['FHRS']) + """</td>
+            <td><a href="gpx/fhrs-unmatched-""" +
+                str(dist['id']) + """.gpx">GPX</a></td>
+        </tr>
+        <tr>
+            <td style='color: green;'>
+                Percentage of FHRS establishments successfully matched</td>
+            <td>""" + '%.1f' % stats['FHRS_matched_pc'] + """%</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>Percentage of relevant OSM nodes/ways with
+                <span style='color: green'>FHRS match</span> or
+                <span style='color: yellow; background-color: gray'>postcode</span></td>
+            <td>""" + '%.1f' % stats['OSM_matched_or_postcode_pc'] + """%</td>
+            <td></td>
+        </tr>
+    </table>
 
     <h3>Overview</h3>
-	<div id="overview_map" style="width: 800px; height: 600px"></div>
+    <div id="overview_map" style="width: 800px; height: 600px"></div>
 
-	<h3>Suggested matches</h3>
-	<div id="suggest_matches_map" style="width: 800px; height: 600px"></div>
+    <h3>Suggested matches</h3>
+    <p><a href="gpx/suggested-matches-""" + str(dist['id']) + """.gpx">
+        Download suggested matches GPX</a></p>
+    <div id="suggest_matches_map" style="width: 800px; height: 600px"></div>
 
     <h3>Postcodes missing/mismatched</h3>""")
 
@@ -155,45 +203,45 @@ for dist in districts:
 
     html += ("""
 
-	<hr>
+    <hr>
 
-	<p>Generated using <a href="https://github.com/gregrs-uk/python-fhrs-osm">""" +
-	"""python-fhrs-osm</a> on """ +
-	datetime.strftime(datetime.now(), '%a %d %b %Y at %H:%M') + """.</p>
+    <p>Generated using <a href="https://github.com/gregrs-uk/python-fhrs-osm">""" +
+    """python-fhrs-osm</a> on """ +
+    datetime.strftime(datetime.now(), '%a %d %b %Y at %H:%M') + """.</p>
 
-	<p><a href="https://github.com/gregrs-uk/python-fhrs-osm/issues">Report bug or suggest feature</a></p>
+    <p><a href="https://github.com/gregrs-uk/python-fhrs-osm/issues">Report bug or suggest feature</a></p>
 
-	<p>Contains <a href="http://www.ordnancesurvey.co.uk">Ordnance Survey</a> data
-	&copy Crown copyright and database right</p>
+    <p>Contains <a href="http://www.ordnancesurvey.co.uk">Ordnance Survey</a> data
+    &copy Crown copyright and database right</p>
 
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/leaflet.js"></script>
-	<script src="https://code.jquery.com/jquery-2.1.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/leaflet.js"></script>
+    <script src="https://code.jquery.com/jquery-2.1.0.min.js"></script>
 
-	<script>
+    <script>
 
         // create maps
 
-		var overview_map = L.map('overview_map').setView([52.372, -1.263], 16);
+        var overview_map = L.map('overview_map').setView([52.372, -1.263], 16);
         var suggest_matches_map = L.map('suggest_matches_map').setView([52.372, -1.263], 16);
 
 
         // add OSM tile layer to each map
 
-		L.tileLayer('https://a.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-			maxZoom: 18,
-			attribution: '&copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ' +
-				'Contains <a href="http://www.ordnancesurvey.co.uk">Ordnance Survey</a> and ' +
-				'<a href="http://ratings.food.gov.uk/open-data/">Food Hygiene Rating Scheme</a> ' +
-				'data &copy Crown copyright and database right'
-		}).addTo(overview_map);
+        L.tileLayer('https://a.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 18,
+            attribution: '&copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ' +
+                'Contains <a href="http://www.ordnancesurvey.co.uk">Ordnance Survey</a> and ' +
+                '<a href="http://ratings.food.gov.uk/open-data/">Food Hygiene Rating Scheme</a> ' +
+                'data &copy Crown copyright and database right'
+        }).addTo(overview_map);
 
-		L.tileLayer('https://a.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-			maxZoom: 18,
-			attribution: '&copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ' +
-				'Contains <a href="http://www.ordnancesurvey.co.uk">Ordnance Survey</a> and ' +
-				'<a href="http://ratings.food.gov.uk/open-data/">Food Hygiene Rating Scheme</a> ' +
-				'data &copy Crown copyright and database right'
-		}).addTo(suggest_matches_map);
+        L.tileLayer('https://a.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 18,
+            attribution: '&copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ' +
+                'Contains <a href="http://www.ordnancesurvey.co.uk">Ordnance Survey</a> and ' +
+                '<a href="http://ratings.food.gov.uk/open-data/">Food Hygiene Rating Scheme</a> ' +
+                'data &copy Crown copyright and database right'
+        }).addTo(suggest_matches_map);
 
 
         // get district boundary JSON, add to maps and fit bounds
@@ -226,7 +274,7 @@ for dist in districts:
 
         // defaults for markers on both maps
 
-		var geojsonMarkerOptions = {
+        var geojsonMarkerOptions = {
             radius: 5,
             color: "black",
             fillColor: "cyan",
@@ -296,7 +344,7 @@ for dist in districts:
             matchesMarkerLayer.bringToFront();
         });
 
-	</script>
+    </script>
 
 </body>
 </html>
