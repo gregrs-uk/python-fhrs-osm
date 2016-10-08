@@ -4,6 +4,7 @@ from psycopg2.extras import DictCursor
 from collections import OrderedDict
 import urllib2
 import xml.etree.ElementTree
+from xml.sax.saxutils import escape
 from shapely.geometry import Polygon
 
 
@@ -484,6 +485,58 @@ class Database(object):
             result.append(row)
 
         return result
+
+    def get_gpx(self, geog_col='fhrs_geog', name_col='fhrs_name',
+                view_name='compare', district_id_col='fhrs_district_id',
+                district_id=182, status=None):
+        """Return a GPX representation of waypoints from the database using
+        the specified parameters.
+
+        geog_col (string): name of column containing waypoint geography
+        name_col (string): name of column containing waypoint name
+        view_name (string): name of view which contains the data
+        district_id_col (string): name of column containing Boundary Line
+            district id
+        district_id (integer): Boundary Line district ID
+        status (string): status of waypoints to be selected e.g. 'matched'
+        Returns string
+        """
+
+        # use supplied variables to get waypoints from database
+        dict_cur = self.connection.cursor(cursor_factory=DictCursor)
+
+        sql = ("SELECT ST_Y(" + geog_col + "::geometry) as lat, " +
+               "ST_X(" + geog_col + "::geometry) as lon,\n" +
+               name_col + " as name\n" +
+               "FROM " + view_name + "\n" +
+               "WHERE " + district_id_col + "=%s")
+        if status:
+            sql += " AND status=%s"
+            values = (district_id, status)
+        else:
+            values = (district_id,)
+        dict_cur.execute(sql, values)
+
+        waypoints = [] # empty list to hold waypoint dicts
+        for row in dict_cur.fetchall():
+            if row['name']:
+                waypoints.append({'lat': str(row['lat']), 'lon': str(row['lon']),
+                                  'name': escape(row['name'])})
+            else:
+                waypoints.append({'lat': str(row['lat']), 'lon': str(row['lon']),
+                                  'name': '???'})
+
+        # create GPX file
+        output = ('<?xml version="1.0" encoding="UTF-8"?>\n' +
+            '<gpx version="1.0" creator="python-fhrs-osm"\n' +
+            '    xmlns="http://www.topografix.com/GPX/1/0">\n')
+        for waypoint in waypoints:
+            output += ('<wpt lat="' + waypoint['lat'] + '" lon="' + waypoint['lon'] + '">\n' +
+                '    <name>' + waypoint['name'] + '</name>\n' +
+                '</wpt>\n')
+        output += '</gpx>'
+        return output
+        return self.create_gpx(result)
 
 
 class OSMDataset(object):

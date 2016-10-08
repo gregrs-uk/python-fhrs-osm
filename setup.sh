@@ -29,4 +29,5 @@ then
 fi
 mkdir ./html || exit 1
 mkdir ./html/json || exit 1
+mkdir ./html/gpx || exit 1
 python create_output_files.py || exit 1
