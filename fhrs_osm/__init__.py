@@ -205,7 +205,7 @@ class Database(object):
                'f."FHRSID" AS fhrs_fhrsid, o."fhrs:id" AS osm_fhrsid,\n' +
                'o.district_id AS osm_district_id, f.district_id AS fhrs_district_id\n' +
                'FROM ' + fhrs_table + ' AS f\n' +
-               'FULL OUTER JOIN ' + osm_table + ' AS o ON f."FHRSID" = o."fhrs:id"\n' +
+               'FULL OUTER JOIN ' + osm_table + ' AS o ON f."FHRSID"::text = o."fhrs:id"\n' +
                'WHERE COALESCE(o.geog, f.geog) IS NOT NULL')
         cur.execute(sql)
         self.connection.commit()
@@ -591,9 +591,9 @@ class OSMDataset(object):
                                        {'t': 'tourism', 'v': 'hotel'},
                                        {'t': 'tourism', 'v': 'guest_house'}],
                  tag_exists_list=['fhrs:id'],
-                 field_list=[{'name': 'fhrs:id', 'format': 'INT'},
+                 field_list=[{'name': 'fhrs:id', 'format': 'VARCHAR(50)'},
                              {'name': 'name', 'format': 'VARCHAR(100)'},
-                             {'name': 'addr:postcode', 'format': 'CHAR(10)'}],
+                             {'name': 'addr:postcode', 'format': 'VARCHAR(50)'}],
                  table_name='osm'):
         """Constructor
 
