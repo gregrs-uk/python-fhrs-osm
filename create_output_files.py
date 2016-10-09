@@ -81,6 +81,9 @@ for dist in districts:
             border: 1px solid black;
             border-collapse: collapse;
         }
+        th, td {
+            padding: 0.25em;
+        }
     </style>
 </head>
 <body>
@@ -89,17 +92,8 @@ for dist in districts:
     <h2>""" + dist['name'] + """</h2>
 
     <h3>District statistics</h3>
+    <p>The colours in this table act as a key for the maps below</p>
     <table>
-        <tr>
-            <td>Total number of FHRS establishments</td>
-            <td>""" + str(stats['total_FHRS']) + """</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>Total number of relevant OSM nodes/ways</td>
-            <td>""" + str(stats['total_OSM']) + """</td>
-            <td></td>
-        </tr>
         <tr>
             <td style='color: green'>
                 OSM nodes/ways with valid fhrs:id and matching postcode</td>
@@ -115,7 +109,7 @@ for dist in districts:
         </tr>
         <tr>
             <td style='color: orange;'>
-                Relevant OSM nodes/ways without fhrs:id or postcode</td>
+                Relevant OSM nodes/ways without postcode or fhrs:id</td>
             <td>""" + str(stats['OSM_no_postcode']) + """</td>
             <td><a href="gpx/osm-unmatched-no-postcode-""" +
                 str(dist['id']) + """.gpx">GPX</a></td>
@@ -139,19 +133,30 @@ for dist in districts:
                 str(dist['id']) + """.gpx">GPX</a></td>
         </tr>
         <tr>
-            <td style='color: green;'>
-                Percentage of FHRS establishments successfully matched</td>
+            <td>Total number of relevant OSM nodes/ways</td>
+            <td>""" + str(stats['total_OSM']) + """</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>Total number of FHRS establishments</td>
+            <td>""" + str(stats['total_FHRS']) + """</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>Percentage of FHRS establishments successfully matched*</td>
             <td>""" + '%.1f' % stats['FHRS_matched_pc'] + """%</td>
             <td></td>
         </tr>
         <tr>
-            <td>Percentage of relevant OSM nodes/ways with
-                <span style='color: green'>FHRS match</span> or
-                <span style='color: yellow; background-color: gray'>postcode</span></td>
+            <td>Percentage of relevant OSM nodes/ways with a postcode**</td>
             <td>""" + '%.1f' % stats['OSM_matched_or_postcode_pc'] + """%</td>
             <td></td>
         </tr>
     </table>
+    <p style="font-size: 80%">*A match is considered successful when the OSM node/way's fhrs:id
+    matches an FHRS one and their postcodes are identical.
+    <p style="font-size: 80%">**OSM nodes/ways with a postcode that matches the FHRS one or with a
+    postcode but no fhrs:id tag.</p>
 
     <h3>Overview</h3>
     <div id="overview_map" style="width: 800px; height: 600px"></div>
