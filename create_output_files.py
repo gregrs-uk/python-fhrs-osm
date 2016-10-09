@@ -47,6 +47,13 @@ for dist in districts:
                        district_id=dist['id'], status='OSM_no_postcode'))
     f.close
 
+    filename = 'html/gpx/osm-invalid-fhrsid-' + str(dist['id']) + '.gpx'
+    f = open(filename, 'w')
+    f.write(db.get_gpx(geog_col='osm_geog', name_col='osm_name',
+                       view_name='compare', district_id_col='osm_district_id',
+                       district_id=dist['id'], status='mismatch'))
+    f.close
+
     filename = 'html/gpx/suggested-matches-' + str(dist['id']) + '.gpx'
     f = open(filename, 'w')
     f.write(db.get_gpx(geog_col='osm_geog', name_col='osm_name',
@@ -117,12 +124,13 @@ for dist in districts:
             <td style='color: red;'>
                 OSM nodes/ways with valid fhrs:id but mismatched/missing postcode</td>
             <td>""" + str(stats['matched_postcode_error']) + """</td>
-                <td></td>
+            <td></td>
         </tr>
         <tr>
             <td style='color: red;'>OSM nodes/ways with invalid fhrs:id</td>
             <td>""" + str(stats['mismatch']) + """</td>
-            <td></td>
+            <td><a href="gpx/osm-invalid-fhrsid-""" +
+                str(dist['id']) + """.gpx">GPX</a></td>
         </tr>
         <tr>
             <td style='color: blue;'>FHRS establishments with no matching OSM node/way</td>
