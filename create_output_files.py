@@ -413,13 +413,13 @@ html = ("""
 
 <h2>Districts</h2>
 
-<p style="font-size: 80%">Matched: % of OSM node/ways whose fhrs:id matches an FHRS one and
-their postcodes are identical.
-<p style="font-size: 80%">Postcode: % of OSM nodes/ways with a postcode that matches the FHRS one
-or with a postcode but no fhrs:id tag.</p>
+<p style="font-size: 80%">Matched: % of FHRS establishments matched to an OSM node/way using
+the fhrs:id tag. N.B. the OSM addr:postcode must be identical.</p>
+<p style="font-size: 80%">Postcodes: % of OSM nodes/ways with an addr:postcode that matches the
+FHRS one or with an addr:postcode tag and no fhrs:id tag.</p>
 
 <table>
-<tr><th>District</th><th>Matched</th><th>Postcode</th></tr>
+<tr><th>District</th><th>Matched</th><th>Postcodes</th></tr>
     """)
 
 csvstring = ('district_id,district_name,matched,OSM_with_postcode,OSM_no_postcode,' + 
