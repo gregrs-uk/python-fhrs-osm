@@ -1,5 +1,5 @@
 from fhrs_osm import *
-from datetime import datetime
+from datetime import datetime, date
 import config
 
 db = Database(dbname=config.dbname)
@@ -7,6 +7,8 @@ db.connect()
 
 print "Getting list of districts which contain some data"
 districts = db.get_inhabited_districts()
+
+# loop round inhabited districts to create relevant files for each district
 
 for dist in districts:
     print "Creating GeoJSON, GPX and HTML files for " + dist['name']
@@ -61,7 +63,8 @@ for dist in districts:
                        district_id=dist['id']))
     f.close
 
-    stats = db.get_district_stats(district_id=dist['id'])
+    # add stats to district's dictionary so that we can access them later
+    dist['stats'] = db.get_district_stats(district_id=dist['id'])
     postcode_errors = db.get_district_postcode_errors(district_id=dist['id'])
     mismatches = db.get_district_mismatches(district_id=dist['id'])
 
@@ -97,59 +100,59 @@ for dist in districts:
         <tr>
             <td style='color: green'>
                 OSM nodes/ways with valid fhrs:id and matching postcode</td>
-            <td>""" + str(stats['matched']) + """</td>
+            <td>""" + str(dist['stats']['matched']) + """</td>
             <td></td>
         </tr>
         <tr>
             <td><span style='color: yellow; background-color: gray'>
                 Relevant OSM nodes/ways with postcode but no valid fhrs:id</span></td>
-            <td>""" + str(stats['OSM_with_postcode']) + """</td>
+            <td>""" + str(dist['stats']['OSM_with_postcode']) + """</td>
             <td><a href="gpx/osm-unmatched-with-postcode-""" +
                 str(dist['id']) + """.gpx">GPX</a></td>
         </tr>
         <tr>
             <td style='color: orange;'>
                 Relevant OSM nodes/ways without postcode or fhrs:id</td>
-            <td>""" + str(stats['OSM_no_postcode']) + """</td>
+            <td>""" + str(dist['stats']['OSM_no_postcode']) + """</td>
             <td><a href="gpx/osm-unmatched-no-postcode-""" +
                 str(dist['id']) + """.gpx">GPX</a></td>
         </tr>
             <tr>
             <td style='color: red;'>
                 OSM nodes/ways with valid fhrs:id but mismatched/missing postcode</td>
-            <td>""" + str(stats['matched_postcode_error']) + """</td>
+            <td>""" + str(dist['stats']['matched_postcode_error']) + """</td>
             <td></td>
         </tr>
         <tr>
             <td style='color: red;'>OSM nodes/ways with invalid fhrs:id</td>
-            <td>""" + str(stats['mismatch']) + """</td>
+            <td>""" + str(dist['stats']['mismatch']) + """</td>
             <td><a href="gpx/osm-invalid-fhrsid-""" +
                 str(dist['id']) + """.gpx">GPX</a></td>
         </tr>
         <tr>
             <td style='color: blue;'>FHRS establishments with no matching OSM node/way</td>
-            <td>""" + str(stats['FHRS']) + """</td>
+            <td>""" + str(dist['stats']['FHRS']) + """</td>
             <td><a href="gpx/fhrs-unmatched-""" +
                 str(dist['id']) + """.gpx">GPX</a></td>
         </tr>
         <tr>
             <td>Total number of relevant OSM nodes/ways</td>
-            <td>""" + str(stats['total_OSM']) + """</td>
+            <td>""" + str(dist['stats']['total_OSM']) + """</td>
             <td></td>
         </tr>
         <tr>
             <td>Total number of FHRS establishments</td>
-            <td>""" + str(stats['total_FHRS']) + """</td>
+            <td>""" + str(dist['stats']['total_FHRS']) + """</td>
             <td></td>
         </tr>
         <tr>
             <td>Percentage of FHRS establishments successfully matched*</td>
-            <td>""" + '%.1f' % stats['FHRS_matched_pc'] + """%</td>
+            <td>""" + '%.1f' % dist['stats']['FHRS_matched_pc'] + """%</td>
             <td></td>
         </tr>
         <tr>
             <td>Percentage of relevant OSM nodes/ways with a postcode**</td>
-            <td>""" + '%.1f' % stats['OSM_matched_or_postcode_pc'] + """%</td>
+            <td>""" + '%.1f' % dist['stats']['OSM_matched_or_postcode_pc'] + """%</td>
             <td></td>
         </tr>
     </table>
@@ -360,7 +363,9 @@ for dist in districts:
     f.write(html)
     f.close
 
-print "Creating index HTML file"
+# loop round districts again to create index file and CSV file
+
+print "Creating index HTML file and stats CSV file"
 
 html = ("""
 <!DOCTYPE html>
@@ -371,22 +376,50 @@ html = ("""
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.css" />
+    <style>
+        table, th, td {
+            border: 1px solid black;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 0.25em;
+        }
+    </style>
 </head>
 
 <body>
 
-    <h1>FHRS/OSM comparison</h1>
+<h1>FHRS/OSM comparison</h1>
 
-    <h2>Districts</h2>
-    <ul>
+<h2>Districts</h2>
+
+<p style="font-size: 80%">Matched: % of OSM node/ways whose fhrs:id matches an FHRS one and
+their postcodes are identical.
+<p style="font-size: 80%">Postcode: % of OSM nodes/ways with a postcode that matches the FHRS one
+or with a postcode but no fhrs:id tag.</p>
+
+<table>
+<tr><th>District</th><th>Matched</th><th>Postcode</th></tr>
     """)
 
+csvstring = ('district_id,district_name,matched,OSM_with_postcode,OSM_no_postcode,' + 
+             'matched_postcode_error,mismatch,FHRS_unmatched,total_OSM,total_FHRS,' +
+             'FHRS_matched_pc,OSM_matched_or_postcode_pc\n')
+
 for dist in districts:
-    html += ('<li><a href="district-' + str(dist['id']) + '.html">' + dist['name'] + '</a></li>')
+    html += ('<tr><td><a href="district-' + str(dist['id']) + '.html">' + dist['name'] + '</a></td>' +
+             '<td>' + '%.1f' % dist['stats']['FHRS_matched_pc'] + '%</td>'
+             '<td>' + '%.1f' % dist['stats']['OSM_matched_or_postcode_pc'] + '%</td></tr>')
+
+    csvstring += '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%.2f,%.2f\n' % (dist['id'], dist['name'],
+                 dist['stats']['matched'], dist['stats']['OSM_with_postcode'],
+                 dist['stats']['OSM_no_postcode'], dist['stats']['matched_postcode_error'],
+                 dist['stats']['mismatch'], dist['stats']['FHRS'], dist['stats']['total_OSM'],
+                 dist['stats']['total_FHRS'], dist['stats']['FHRS_matched_pc'],
+                 dist['stats']['OSM_matched_or_postcode_pc'])
 
 html += ("""
-    </ul>
+</table>
 
 <hr>
 
@@ -405,4 +438,8 @@ datetime.strftime(datetime.now(), '%a %d %b %Y at %H:%M') + """.</p>
 
 f = open('html/index.html', 'w')
 f.write(html)
+f.close
+
+f = open('html/stats-' + date.today().isoformat() + '.csv', 'w')
+f.write(csvstring)
 f.close
