@@ -343,7 +343,7 @@ class Database(object):
                "                   CASE WHEN \"AddressLine3\" IS NOT NULL THEN\n" +
                "                       CONCAT('%7Cfixme:addr3=', \"AddressLine3\") END,\n" +
                "                   CASE WHEN \"AddressLine4\" IS NOT NULL THEN\n" +
-               "                       CONCAT('%7Cfixme:addr3=', \"AddressLine4\") END,\n" +
+               "                       CONCAT('%7Cfixme:addr4=', \"AddressLine4\") END,\n" +
                "                   CASE WHEN \"PostCode\" IS NOT NULL THEN\n" +
                "                       CONCAT('%7Caddr:postcode=', \"PostCode\") END,\n" +
                "                   '%7Csource:addr=FHRS Open Data',\n" +
