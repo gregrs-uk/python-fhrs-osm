@@ -853,9 +853,9 @@ class FHRSDataset(object):
             request.add_header(header, content)
         try:
             response = urllib2.urlopen(request)
-        except URLError:
-            print "Couldn't get data using FHRS endpoint " + endpoint
-            print "Continuing..."
+        except urllib2.URLError:
+            raise RuntimeError(
+                "Couldn't get data using FHRS endpoint " + endpoint)
         return response.read()
 
     def download_authorities(self):
