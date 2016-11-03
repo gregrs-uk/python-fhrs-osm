@@ -814,7 +814,8 @@ class FHRSDataset(object):
     api_base_url = 'http://api.ratings.food.gov.uk/'
     api_headers = [('x-api-version', 2),
                    ('accept', 'application/xml'),
-                   ('content-type', 'application/xml')]
+                   ('content-type', 'application/xml'),
+                   ('user-agent', 'python-fhrs-osm')]
     xmlns = '{http://schemas.datacontract.org/2004/07/FHRS.Model.Detailed}'
     #xmlns_basic = '{http://schemas.datacontract.org/2004/07/FHRS.Model.Basic}'
 
