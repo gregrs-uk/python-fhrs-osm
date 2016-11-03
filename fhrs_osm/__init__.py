@@ -814,7 +814,8 @@ class FHRSDataset(object):
     api_base_url = 'http://api.ratings.food.gov.uk/'
     api_headers = [('x-api-version', 2),
                    ('accept', 'application/xml'),
-                   ('content-type', 'application/xml')]
+                   ('content-type', 'application/xml'),
+                   ('user-agent', 'python-fhrs-osm')]
     xmlns = '{http://schemas.datacontract.org/2004/07/FHRS.Model.Detailed}'
     #xmlns_basic = '{http://schemas.datacontract.org/2004/07/FHRS.Model.Basic}'
 
@@ -853,9 +854,16 @@ class FHRSDataset(object):
             request.add_header(header, content)
         try:
             response = urllib2.urlopen(request)
+        except urllib2.HTTPError:
+            print "HTTP Error when trying to get data from FHRS API"
+            print "URL: " + url
+            print "Headers: " + repr(request.header_items())
+            raise
         except urllib2.URLError:
-            raise RuntimeError(
-                "Couldn't get data using FHRS endpoint " + endpoint)
+            print "URL Error when trying to get data from FHRS API"
+            print "URL: " + url
+            print "Headers: " + repr(request.header_items())
+            raise
         return response.read()
 
     def download_authorities(self):
