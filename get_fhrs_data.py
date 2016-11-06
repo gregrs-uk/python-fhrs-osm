@@ -31,6 +31,6 @@ fhrs.create_establishment_table(connection=con)
 
 for this_authority in fhrs_authorities:
     print "Getting data for authority " + str(this_authority)
-    xmlstring = fhrs.download_establishments_for_authority(this_authority)
+    xmllist = fhrs.download_establishments_for_authority(this_authority)
     print "Writing data for authority " + str(this_authority)
-    fhrs.write_establishments(xmlstring, con)
+    fhrs.write_establishments(xmllist, con)

@@ -809,6 +809,7 @@ class FHRSDataset(object):
     api_base_url (string): base url for FHRS API
     api_headers (list of tuples): headers to add to HTTP request
     xmlns (string): namespace which prefixes tags when parsed with ElementTree
+    xmlns_meta (string): namespace which prefixes meta tags
     """
 
     api_base_url = 'http://api.ratings.food.gov.uk/'
@@ -817,7 +818,7 @@ class FHRSDataset(object):
                    ('content-type', 'application/xml'),
                    ('user-agent', 'python-fhrs-osm')]
     xmlns = '{http://schemas.datacontract.org/2004/07/FHRS.Model.Detailed}'
-    #xmlns_basic = '{http://schemas.datacontract.org/2004/07/FHRS.Model.Basic}'
+    xmlns_meta = '{http://schemas.datacontract.org/2004/07/FHRS.Model.MetaLinks}'
 
     def __init__(self,
                  est_field_list=[{'name': 'BusinessName', 'format': 'VARCHAR(100)'},
@@ -879,10 +880,25 @@ class FHRSDataset(object):
         authority_id (integer): ID of authority
         Returns XML string
         """
-        # construct endpoint, adding page number and size to prevent HTTP Error 403 (see #21)
-        endpoint = ('Establishments?localAuthorityId=' + str(authority_id) +
-                    '&pageNumber=1&pageSize=5000') # 5000 seems to be the max size allowed
-        return self.api_download(endpoint=endpoint)
+
+        page = 1
+        total_pages = 1 # assume 1 page for now
+        xml_list = [] # list to hold xml strings
+
+        # if this is the first page or there is another to download
+        while (page == 1 or page <= total_pages):
+            # download this page (max 5000 establishments) and add to list
+            endpoint = ('Establishments?localAuthorityId=' + str(authority_id) +
+                        '&pageNumber=' + str(page) + '&pageSize=5000') 
+            xml_list.append(self.api_download(endpoint=endpoint))
+            if (page == 1):
+                # after the first page has been downloaded, get total number of pages
+                root = xml.etree.ElementTree.fromstring(xml_list[page - 1])
+                total_pages = int(root.findtext(self.xmlns_meta + 'meta/' +
+                                                self.xmlns_meta + 'totalPages'))
+            page += 1
+
+        return xml_list
 
     def create_authority_table(self, connection):
         """(Re)create the FHRS authority table, first dropping any existing
@@ -982,68 +998,71 @@ class FHRSDataset(object):
             else:
                 connection.commit()
 
-    def write_establishments(self, xml_string, connection):
-        """Write the FHRS establishments from the XML string to the database
+    def write_establishments(self, xml_list, connection):
+        """Write the FHRS establishments from a list of XML strings to the database
 
-        xml_string (string): XML containing establishment info
+        xml_list (list of strings): list of XML strings containing
+            establishment info
         connection (object): database connection
         """
 
-        root = xml.etree.ElementTree.fromstring(xml_string)
+        for xml_string in xml_list: # i.e. for each page of results for this authority
 
-        for est in root.iter(self.xmlns + 'establishment'):
-            # create a blank dict to store relevant data for this establishment
-            # need to keep it in order so we can write it to the database
-            record = OrderedDict()
+            root = xml.etree.ElementTree.fromstring(xml_string)
 
-            # put FHRSID, position and LocalAuthorityCode into record dict
-            record['FHRSID'] = est.find(self.xmlns + 'FHRSID').text
-            record['geog'] = None
-            geocode = est.find(self.xmlns + 'geocode')
-            lon = geocode.find(self.xmlns + 'longitude').text
-            lat = geocode.find(self.xmlns + 'latitude').text
-            if lon is not None and lat is not None:
-                record['geog'] = ("ST_GeogFromText('SRID=4326;POINT(" +
-                                  str(lon) + " " + str(lat) + ")')")
-            record['LocalAuthorityCode'] = est.find(self.xmlns + 'LocalAuthorityCode').text
+            for est in root.iter(self.xmlns + 'establishment'):
+                # create a blank dict to store relevant data for this establishment
+                # need to keep it in order so we can write it to the database
+                record = OrderedDict()
 
-            # start with this record's other fields set to None
-            for this_field in self.est_field_list:
-                record[this_field['name']] = None
+                # put FHRSID, position and LocalAuthorityCode into record dict
+                record['FHRSID'] = est.find(self.xmlns + 'FHRSID').text
+                record['geog'] = None
+                geocode = est.find(self.xmlns + 'geocode')
+                lon = geocode.find(self.xmlns + 'longitude').text
+                lat = geocode.find(self.xmlns + 'latitude').text
+                if lon is not None and lat is not None:
+                    record['geog'] = ("ST_GeogFromText('SRID=4326;POINT(" +
+                                      str(lon) + " " + str(lat) + ")')")
+                record['LocalAuthorityCode'] = est.find(self.xmlns + 'LocalAuthorityCode').text
 
-            # fill record dict from XML using field list
-            for this_field in self.est_field_list:
-                if est.find(self.xmlns + this_field['name']).text is not None:
-                    record[this_field['name']] = est.find(self.xmlns + this_field['name']).text
+                # start with this record's other fields set to None
+                for this_field in self.est_field_list:
+                    record[this_field['name']] = None
 
-            # create an SQL statement and matching tuple of values to insert
-            values_list = []
-            sql = "INSERT INTO " + self.est_table_name + " VALUES ("
-            for key in record.keys():
-                if key == 'geog' and record['geog'] is not None:
-                    sql += record['geog']
+                # fill record dict from XML using field list
+                for this_field in self.est_field_list:
+                    if est.find(self.xmlns + this_field['name']).text is not None:
+                        record[this_field['name']] = est.find(self.xmlns + this_field['name']).text
+
+                # create an SQL statement and matching tuple of values to insert
+                values_list = []
+                sql = "INSERT INTO " + self.est_table_name + " VALUES ("
+                for key in record.keys():
+                    if key == 'geog' and record['geog'] is not None:
+                        sql += record['geog']
+                    else:
+                        values_list.append(record[key])
+                        sql += "%s"
+                    # if not last key/value pair in record, add a comma
+                    if (key != record.keys()[-1]):
+                        sql += ","
+                values = tuple(values_list)
+                sql += ")"
+
+                cur = connection.cursor()
+
+                try:
+                    cur.execute(sql, values)
+                except (psycopg2.DataError, psycopg2.IntegrityError) as e:
+                    connection.rollback()
+                    print "\nCouldn't insert the following FHRS establishment data:"
+                    print record
+                    print "The reason given was:"
+                    print repr(e)
+                    print "Continuing..."
                 else:
-                    values_list.append(record[key])
-                    sql += "%s"
-                # if not last key/value pair in record, add a comma
-                if (key != record.keys()[-1]):
-                    sql += ","
-            values = tuple(values_list)
-            sql += ")"
-
-            cur = connection.cursor()
-
-            try:
-                cur.execute(sql, values)
-            except (psycopg2.DataError, psycopg2.IntegrityError) as e:
-                connection.rollback()
-                print "\nCouldn't insert the following FHRS establishment data:"
-                print record
-                print "The reason given was:"
-                print repr(e)
-                print "Continuing..."
-            else:
-                connection.commit()
+                    connection.commit()
 
     def get_authorities(self, connection, region_name=None):
         """Return a list of FHRS authority IDs (without those for Northern
