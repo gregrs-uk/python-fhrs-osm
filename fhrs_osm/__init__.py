@@ -879,7 +879,9 @@ class FHRSDataset(object):
         authority_id (integer): ID of authority
         Returns XML string
         """
-        endpoint = 'Establishments?localAuthorityId=' + str(authority_id)
+        # construct endpoint, adding page number and size to prevent HTTP Error 403 (see #21)
+        endpoint = ('Establishments?localAuthorityId=' + str(authority_id) +
+                    '&pageNumber=1&pageSize=5000') # 5000 seems to be the max size allowed
         return self.api_download(endpoint=endpoint)
 
     def create_authority_table(self, connection):
