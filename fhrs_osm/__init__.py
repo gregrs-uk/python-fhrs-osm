@@ -275,15 +275,23 @@ class Database(object):
                "       row_to_json((\n" +
                "           SELECT l FROM (\n" +
                "               SELECT string_agg(\n" +
-               "                   CASE WHEN fhrs_fhrsid IS NOT NULL THEN\n" +
-               "                       CONCAT('<a href=\"" + self.fhrs_est_url_prefix + "', " +
-                                             "fhrs_fhrsid, '" + self.fhrs_est_url_suffix + "\"" +
-               "                              target=\"_blank\">',\n" +
-               "                              COALESCE(osm_name, fhrs_name),\n" +
-               "                              '</a> (', status, ')')\n" +
-               "                   WHEN fhrs_fhrsid IS NULL THEN\n" +
+                                   # when FHRS establishment not in OSM
+               "                   CASE WHEN fhrs_fhrsid IS NOT NULL AND osm_fhrsid IS NULL THEN\n" +
                "                       CONCAT(COALESCE(osm_name, fhrs_name),\n" +
-               "                              ' (', status, ')')\n" +
+               "                              ' (<a href=\"" + self.fhrs_est_url_prefix + "',\n" +
+               "                              fhrs_fhrsid, '" + self.fhrs_est_url_suffix + "\"" +
+                                             "target=\"_blank\">', status, '</a>)')\n" +
+                                   # when in OSM and possibly FHRS too
+               "                   ELSE\n" +
+               "                       CONCAT(COALESCE(osm_name, fhrs_name),\n" +
+               "                              ' (<a href=\"" + self.osm_url_prefix + "',\n" +
+               "                              TRIM(TRAILING ' ' FROM osm_type),\n" +
+               "                              '/', osm_id, '\" target=\"_blank\">',\n" +
+               "                              status, '</a>)<br />',\n" +
+               "                              '<a href=\"" + self.josm_url_prefix +
+                                             "load_object?objects=',\n" +
+               "                              substring(osm_type from 1 for 1), osm_id,\n" +
+               "                              '\" target=\"_blank\">Edit in JOSM</a>')\n" +
                "                   END, '<br />'\n" +
                "               ) AS list,\n" +
                "               COUNT(CASE WHEN status = 'matched' THEN 1 END) AS matched,\n" +
