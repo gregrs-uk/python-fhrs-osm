@@ -546,7 +546,6 @@ class Database(object):
                 '</wpt>\n')
         output += '</gpx>'
         return output
-        return self.create_gpx(result)
 
 
 class OSMDataset(object):
