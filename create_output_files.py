@@ -180,11 +180,12 @@ for dist in districts:
                  '    <tr><th>Name</th><th>OSM addr:postcode</th><th>FHRS postcode</th><th></th></tr>\n')
         for this_error in postcode_errors:
             html += ('<tr><td><a href="' + db.osm_url_prefix + this_error['osm_type'] + '/' +
-                     str(this_error['osm_id']) + '">' + str(this_error['osm_name']) + '</a></td>\n' +
+                     str(this_error['osm_id']) + '" target="_blank">' +
+                     str(this_error['osm_name']) + '</a></td>\n' +
                      '<td>' + str(this_error['osm_postcode']) + '</td>\n' +
                      '<td>' + str(this_error['fhrs_postcode'])+ '</td>\n' +
                      '<td><a href=\"' + db.josm_url_prefix + 'load_object?objects=' +
-                     this_error['osm_ident'] + '\">Edit in JOSM</a></td></tr>\n')
+                     this_error['osm_ident'] + '\" target="_blank">Edit in JOSM</a></td></tr>\n')
         html += '</table>'
 
     html += ("""
@@ -202,25 +203,25 @@ for dist in districts:
                  '    <tr><th>Name</th><th>FHRS ID</th><th></th></tr>\n')
         for this_error in mismatches:
             html += ('<tr><td><a href="' + db.osm_url_prefix + this_error['osm_type'] + '/' +
-                     str(this_error['osm_id']) + '">' + str(this_error['osm_name']) + '</a></td>\n' +
-                     '<td><a href=\"' + db.fhrs_est_url_prefix + str(this_error['osm_fhrsid']) +
-                     db.fhrs_est_url_suffix + '\">' + str(this_error['osm_fhrsid']) + '</a></td>\n' +
+                     str(this_error['osm_id']) + '" target="_blank">' + str(this_error['osm_name']) + '</a></td>\n' +
+                     '<td>' + str(this_error['osm_fhrsid']) + '</td>\n' +
                      '<td><a href=\"' + db.josm_url_prefix + 'load_object?objects=' +
-                     this_error['osm_ident'] + '\">Edit in JOSM</a></td></tr>\n')
+                     this_error['osm_ident'] + '\" target="_blank">Edit in JOSM</a></td></tr>\n')
         html += '</table>'
 
     html += ("""
 
     <hr>
 
-    <p>Generated using <a href="https://github.com/gregrs-uk/python-fhrs-osm">""" +
-    """python-fhrs-osm</a> on """ +
+    <p>Generated using <a href="https://github.com/gregrs-uk/python-fhrs-osm" target="_blank">
+    python-fhrs-osm</a> on """ +
     datetime.strftime(datetime.now(), '%a %d %b %Y at %H:%M') + """.</p>
 
-    <p><a href="https://github.com/gregrs-uk/python-fhrs-osm/issues">Report bug or suggest feature</a></p>
+    <p><a href="https://github.com/gregrs-uk/python-fhrs-osm/issues" target="_blank">
+    Report bug or suggest feature</a></p>
 
-    <p>Contains <a href="http://www.ordnancesurvey.co.uk">Ordnance Survey</a> data
-    &copy Crown copyright and database right</p>
+    <p>Contains <a href="http://www.ordnancesurvey.co.uk" target="_blank">Ordnance Survey</a>
+    data &copy Crown copyright and database right</p>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/leaflet.js"></script>
     <script src="https://code.jquery.com/jquery-2.1.0.min.js"></script>
@@ -237,18 +238,20 @@ for dist in districts:
 
         L.tileLayer('https://a.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 18,
-            attribution: '&copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ' +
-                'Contains <a href="http://www.ordnancesurvey.co.uk">Ordnance Survey</a> and ' +
-                '<a href="http://ratings.food.gov.uk/open-data/">Food Hygiene Rating Scheme</a> ' +
-                'data &copy Crown copyright and database right'
+            attribution: '&copy; <a href="http://openstreetmap.org" target="_blank">OpenStreetMap' +
+                '</a> contributors, Contains <a href="http://www.ordnancesurvey.co.uk"' +
+                'target="_blank">Ordnance Survey</a> and ' +
+                '<a href="http://ratings.food.gov.uk/open-data/" target="_blank">' +
+                'Food Hygiene Rating Scheme</a> data &copy Crown copyright and database right'
         }).addTo(overview_map);
 
         L.tileLayer('https://a.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 18,
-            attribution: '&copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ' +
-                'Contains <a href="http://www.ordnancesurvey.co.uk">Ordnance Survey</a> and ' +
-                '<a href="http://ratings.food.gov.uk/open-data/">Food Hygiene Rating Scheme</a> ' +
-                'data &copy Crown copyright and database right'
+            attribution: '&copy; <a href="http://openstreetmap.org" target="_blank">OpenStreetMap' +
+                '</a> contributors, Contains <a href="http://www.ordnancesurvey.co.uk"' +
+                'target="_blank">Ordnance Survey</a> and ' +
+                '<a href="http://ratings.food.gov.uk/open-data/" target="_blank">' +
+                'Food Hygiene Rating Scheme</a> data &copy Crown copyright and database right'
         }).addTo(suggest_matches_map);
 
 
@@ -423,14 +426,15 @@ html += ("""
 
 <hr>
 
-<p>Generated using <a href="https://github.com/gregrs-uk/python-fhrs-osm">""" +
-"""python-fhrs-osm</a> on """ +
+<p>Generated using <a href="https://github.com/gregrs-uk/python-fhrs-osm" target="_blank">
+python-fhrs-osm</a> on """ +
 datetime.strftime(datetime.now(), '%a %d %b %Y at %H:%M') + """.</p>
 
-<p><a href="https://github.com/gregrs-uk/python-fhrs-osm/issues">Report bug or suggest feature</a></p>
+<p><a href="https://github.com/gregrs-uk/python-fhrs-osm/issues" target="_blank">
+Report bug or suggest feature</a></p>
 
-<p>Contains <a href="http://www.ordnancesurvey.co.uk">Ordnance Survey</a> data
-&copy Crown copyright and database right</p>
+<p>Contains <a href="http://www.ordnancesurvey.co.uk" target="_blank">Ordnance Survey</a>
+data &copy Crown copyright and database right</p>
 
 </body>
 </html>

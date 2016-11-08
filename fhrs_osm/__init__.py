@@ -276,8 +276,9 @@ class Database(object):
                "           SELECT l FROM (\n" +
                "               SELECT string_agg(\n" +
                "                   CASE WHEN fhrs_fhrsid IS NOT NULL THEN\n" +
-               "                       CONCAT('<a href=\"" + self.fhrs_est_url_prefix + "', "
-                                             "fhrs_fhrsid, '" + self.fhrs_est_url_suffix + "\">',\n" +
+               "                       CONCAT('<a href=\"" + self.fhrs_est_url_prefix + "', " +
+                                             "fhrs_fhrsid, '" + self.fhrs_est_url_suffix + "\"" +
+               "                              target=\"_blank\">',\n" +
                "                              COALESCE(osm_name, fhrs_name),\n" +
                "                              '</a> (', status, ')')\n" +
                "                   WHEN fhrs_fhrsid IS NULL THEN\n" +
@@ -330,9 +331,10 @@ class Database(object):
                "           SELECT l FROM (\n" +
                "               SELECT CONCAT('OSM: <a href=\"" + self.osm_url_prefix + "',\n" +
                "                   TRIM(TRAILING ' ' FROM osm_type),\n" +
-               "                   '/', osm_id, '\">', osm_name, '</a>'\n" +
+               "                   '/', osm_id, '\" target=\"_blank\">', osm_name, '</a>'\n" +
                "                   '<br />FHRS: <a href=\"" + self.fhrs_est_url_prefix + "',\n" +
-               "                   \"FHRSID\", '" + self.fhrs_est_url_suffix + "\">', fhrs_name,\n" +
+               "                   \"FHRSID\", '" + self.fhrs_est_url_suffix + "\"\n" +
+               "                   target=\"_blank\">', fhrs_name,\n" +
                "                   '</a><br /><a href=\"" + self.josm_url_prefix + "',"
                "                   'load_object?objects=', substring(osm_type from 1 for 1),\n" +
                "                   osm_id, '&addtags=fhrs:id=', \"FHRSID\",\n" +
@@ -347,7 +349,7 @@ class Database(object):
                "                   CASE WHEN \"PostCode\" IS NOT NULL THEN\n" +
                "                       CONCAT('%7Caddr:postcode=', \"PostCode\") END,\n" +
                "                   '%7Csource:addr=FHRS Open Data',\n" +
-               "                   '\">Add tags in JOSM</a>') AS text,\n" +
+               "                   '\" target=\"_blank\">Add tags in JOSM</a>') AS text,\n" +
                "               \"addr:postcode\" as osm_postcode \n" +
                "           ) AS l\n" +
                "       )) AS properties\n" +
