@@ -108,14 +108,14 @@ for dist in districts:
                 Relevant OSM nodes/ways with postcode but no valid fhrs:id</span></td>
             <td>""" + str(dist['stats']['OSM_with_postcode']) + """</td>
             <td><a href="gpx/osm-unmatched-with-postcode-""" +
-                str(dist['id']) + """.gpx">GPX</a></td>
+                str(dist['id']) + """.gpx" download>GPX</a></td>
         </tr>
         <tr>
             <td style='color: orange;'>
                 Relevant OSM nodes/ways without postcode or fhrs:id</td>
             <td>""" + str(dist['stats']['OSM_no_postcode']) + """</td>
             <td><a href="gpx/osm-unmatched-no-postcode-""" +
-                str(dist['id']) + """.gpx">GPX</a></td>
+                str(dist['id']) + """.gpx" download>GPX</a></td>
         </tr>
             <tr>
             <td style='color: red;'>
@@ -127,13 +127,13 @@ for dist in districts:
             <td style='color: red;'>OSM nodes/ways with invalid fhrs:id</td>
             <td>""" + str(dist['stats']['mismatch']) + """</td>
             <td><a href="gpx/osm-invalid-fhrsid-""" +
-                str(dist['id']) + """.gpx">GPX</a></td>
+                str(dist['id']) + """.gpx" download>GPX</a></td>
         </tr>
         <tr>
             <td style='color: blue;'>FHRS establishments with no matching OSM node/way</td>
             <td>""" + str(dist['stats']['FHRS']) + """</td>
             <td><a href="gpx/fhrs-unmatched-""" +
-                str(dist['id']) + """.gpx">GPX</a></td>
+                str(dist['id']) + """.gpx" download>GPX</a></td>
         </tr>
         <tr>
             <td>Total number of relevant OSM nodes/ways</td>
@@ -165,7 +165,7 @@ for dist in districts:
     <div id="overview_map" style="width: 800px; height: 600px"></div>
 
     <h3>Suggested matches</h3>
-    <p><a href="gpx/suggested-matches-""" + str(dist['id']) + """.gpx">
+    <p><a href="gpx/suggested-matches-""" + str(dist['id']) + """.gpx" download>
         Download suggested matches GPX</a></p>
     <div id="suggest_matches_map" style="width: 800px; height: 600px"></div>
 
