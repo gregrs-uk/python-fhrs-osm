@@ -34,3 +34,6 @@ for this_authority in fhrs_authorities:
     xmllist = fhrs.download_establishments_for_authority(this_authority)
     print "Writing data for authority " + str(this_authority)
     fhrs.write_establishments(xmllist, con)
+
+print "Adding FHRSID database index"
+fhrs.create_index_fhrsid(connection=con)

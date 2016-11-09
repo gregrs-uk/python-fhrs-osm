@@ -80,6 +80,9 @@ class Database(object):
                 print sql, values
                 return False
 
+        # create index to speed up comparison with OSM district_ids
+        cur.execute('CREATE INDEX ON ' + fhrs_table + ' (district_id);')
+
         self.connection.commit()
         return True
 
@@ -128,6 +131,9 @@ class Database(object):
                 print "SQL statement and values for last attempted execute:"
                 print sql, values
                 return False
+
+        # create index to speed up comparison with FHRS district_ids
+        cur.execute('CREATE INDEX ON ' + osm_table + ' (district_id);')
 
         self.connection.commit()
         return True
@@ -1072,6 +1078,15 @@ class FHRSDataset(object):
                     print "Continuing..."
                 else:
                     connection.commit()
+
+    def create_index_fhrsid(self, connection):
+        """Create a database index to speed up comparison of FHRSID with OSM fhrs:id
+
+        connection (object): database connection
+        """
+        cur = connection.cursor()
+        cur.execute('CREATE INDEX ON ' + self.est_table_name + ' (CAST ("FHRSID" AS TEXT));')
+        connection.commit()
 
     def get_authorities(self, connection, region_name=None):
         """Return a list of FHRS authority IDs (without those for Northern
