@@ -767,8 +767,6 @@ class OSMDataset(object):
         filter_ways (boolean): do we need to filter ways based on tag/value list?
         """
 
-        cur = connection.cursor()
-
         # nodes could be relevant or just contain geometry info for a way
         # so in any case we need to filter them based on our tag_value_list
         for node in result.get_nodes():
@@ -795,6 +793,10 @@ class OSMDataset(object):
                 centroid = self.get_way_centroid(way)
                 self.write_entity(entity=way, lat=centroid['lat'],
                                   lon=centroid['lon'], connection=connection)
+
+        cur = connection.cursor()
+        cur.execute('CREATE INDEX ON ' + self.table_name + ' USING GIST (geog);')
+        connection.commit()
 
     def get_way_centroid(self, way):
         """Calculate the centroid of a way
@@ -1078,13 +1080,14 @@ class FHRSDataset(object):
                 else:
                     connection.commit()
 
-    def create_index_fhrsid(self, connection):
-        """Create a database index to speed up comparison of FHRSID with OSM fhrs:id
+    def create_fhrs_indexes(self, connection):
+        """Create database indexes for FHRS establishments table
 
         connection (object): database connection
         """
         cur = connection.cursor()
         cur.execute('CREATE INDEX ON ' + self.est_table_name + ' (CAST ("FHRSID" AS TEXT));')
+        cur.execute('CREATE INDEX ON ' + self.est_table_name + ' USING GIST (geog);')
         connection.commit()
 
     def get_authorities(self, connection, region_name=None):
