@@ -3,6 +3,8 @@
 source ~/gregrs-python-env/bin/activate || exit 1
 source ~/python-fhrs-osm/config.py || exit 1
 
+python get_fhrs_data.py || exit 1
+
 echo "Downloading latest OSM data"
 cd ~/python-fhrs-osm/data || exit 1
 mv great-britain-latest.osm.pbf great-britain-latest.osm.pbf.old
@@ -15,7 +17,6 @@ cd ~/python-fhrs-osm || exit 1
 echo "Filtering OSM data"
 ./filter-osm.sh || exit 1
 
-python get_fhrs_data.py || exit 1
 python get_osm_data.py || exit 1
 python process_data.py || exit 1
 if [ -d "./html" ]
