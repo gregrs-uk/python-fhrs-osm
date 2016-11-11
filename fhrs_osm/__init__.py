@@ -251,6 +251,12 @@ class Database(object):
                '     OR levenshtein_less_equal(o.name, f."BusinessName", %s) < %s)\n' +
                'AND ST_DWithin(o.geog, f.geog, %s, false)\n' + # false = don't use spheroid
                'WHERE o."fhrs:id" IS NULL\n' +
+               # check that FHRS ID not already used by another OSM entity
+               # only check this district to speed up query
+               'AND NOT EXISTS\n' +
+               '    (SELECT "fhrs:id" FROM osm\n' +
+               '     WHERE district_id = o.district_id\n' +
+               '     AND "fhrs:id" = CAST(f."FHRSID" AS TEXT))\n' +
                'ORDER BY o.name')
         values = (levenshtein_distance, levenshtein_distance, distance_metres)
 
