@@ -35,5 +35,5 @@ for this_authority in fhrs_authorities:
     print "Writing data for authority " + str(this_authority)
     fhrs.write_establishments(xmllist, con)
 
-print "Adding FHRSID database index"
-fhrs.create_index_fhrsid(connection=con)
+print "Adding database indexes for FHRS establishments"
+fhrs.create_fhrs_indexes(connection=con)
