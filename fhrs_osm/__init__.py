@@ -241,7 +241,6 @@ class Database(object):
                'f."AddressLine1", f."AddressLine2", \n' +
                'f."AddressLine3", f."AddressLine4", \n' +
                'f."PostCode", o."addr:postcode", \n' +
-               'ST_Distance(o.geog, f.geog) AS distance_metres,\n' +
                'o.geog AS osm_geog, f.geog AS fhrs_geog,\n' +
                'o.district_id AS osm_district_id, f.district_id AS fhrs_district_id\n' +
                'FROM ' + osm_table + ' AS o\n' +
@@ -250,7 +249,7 @@ class Database(object):
                'ON o.district_id = f.district_id\n' +
                'AND (f."BusinessName" LIKE \'%%\' || o.name || \'%%\'\n' +
                '     OR levenshtein_less_equal(o.name, f."BusinessName", %s) < %s)\n' +
-               'AND ST_Distance(o.geog, f.geog) < %s\n' +
+               'AND ST_DWithin(o.geog, f.geog, %s, false)\n' + # false = don't use spheroid
                'WHERE o."fhrs:id" IS NULL\n' +
                'ORDER BY o.name')
         values = (levenshtein_distance, levenshtein_distance, distance_metres)
