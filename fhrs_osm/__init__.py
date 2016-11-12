@@ -281,8 +281,9 @@ class Database(object):
         self.connection.commit()
 
         sql = ('CREATE VIEW ' + view_name + ' AS\n' +
-               'SELECT o.id, f."FHRSID", o.district_id,\n' +
-               'ST_MakeLine(o.geog::geometry, f.geog::geometry) AS geom,\n' +
+               'SELECT o.id AS osm_id, TRIM(TRAILING \' \' FROM o.type) AS osm_type,\n' +
+               'f."FHRSID" AS fhrs_id, o.name AS osm_name, f."BusinessName" AS fhrs_name,\n' +
+               'o.district_id, ST_MakeLine(o.geog::geometry, f.geog::geometry) AS geom,\n' +
                'ST_Distance(o.geog, f.geog) AS distance\n' +
                'FROM ' + osm_table + ' o\n' +
                'FULL OUTER JOIN ' + fhrs_table + ' f ON o."fhrs:id"::text = f."FHRSID"::text\n' +
@@ -588,6 +589,32 @@ class Database(object):
                '    WHERE district_id = %s\n' +
                '    GROUP BY "fhrs:id" HAVING COUNT("fhrs:id") > 1)\n' +
                'ORDER BY "fhrs:id";')
+        values = (district_id,)
+        dict_cur.execute(sql, values)
+
+        result = []
+        for row in dict_cur.fetchall():
+            result.append(row)
+
+        return result
+
+    def get_district_distant_matches(self, distant_matches_view='distant_matches',
+                                     district_id=182):
+        """Get OSM entities that are matched to an FHRS establishment where
+        the OSM/FHRS locations are distant.
+
+        distant_matches_view (string): name of distant matches database view
+        district_id (integer): Boundary Line district ID
+        Returns dict
+        """
+
+        dict_cur = self.connection.cursor(cursor_factory=DictCursor)
+
+        sql = ('SELECT osm_id, osm_type,\n' +
+               'CONCAT(SUBSTRING(osm_type FROM 1 FOR 1), osm_id) AS osm_ident, fhrs_id,\n' +
+               'osm_name, fhrs_name, distance\n' +
+               'FROM ' + distant_matches_view + '\n' +
+               'WHERE district_id = %s;')
         values = (district_id,)
         dict_cur.execute(sql, values)
 
