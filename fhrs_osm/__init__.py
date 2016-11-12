@@ -507,6 +507,38 @@ class Database(object):
 
         return result
 
+    def get_district_duplicates(self, osm_table='osm', fhrs_table='fhrs_establishments',
+                                district_id=182):
+        """Get OSM entities which have an fhrs:id shared by at least one OSM
+        entity within the specified district.
+
+        osm_table (string): name of OSM database table
+        fhrs_table (string): name of FHRS establishments database table
+        district_id (integer): Boundary Line district ID
+        Returns dict
+        """
+
+        dict_cur = self.connection.cursor(cursor_factory=DictCursor)
+
+        sql = ('SELECT id, TRIM(TRAILING ' ' FROM type) as type,\n' +
+               'CONCAT(substring(type FROM 1 FOR 1), id) AS osm_ident, "fhrs:id",\n' +
+               osm_table + '.district_id, name AS osm_name, "BusinessName" AS fhrs_name\n' +
+               'FROM ' + osm_table + '\n' +
+               'LEFT JOIN ' + fhrs_table + ' ON "fhrs:id" = CAST("FHRSID" AS TEXT)\n' +
+               'WHERE "fhrs:id" IN (\n' +
+               '    SELECT "fhrs:id" FROM osm\n' +
+               '    WHERE district_id = %s\n' +
+               '    GROUP BY "fhrs:id" HAVING COUNT("fhrs:id") > 1)\n' +
+               'ORDER BY "fhrs:id";')
+        values = (district_id,)
+        dict_cur.execute(sql, values)
+
+        result = []
+        for row in dict_cur.fetchall():
+            result.append(row)
+
+        return result
+
     def get_gpx(self, geog_col='fhrs_geog', name_col='fhrs_name',
                 view_name='compare', district_id_col='fhrs_district_id',
                 district_id=182, status=None):
