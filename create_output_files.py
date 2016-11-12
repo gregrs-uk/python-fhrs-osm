@@ -67,6 +67,7 @@ for dist in districts:
     dist['stats'] = db.get_district_stats(district_id=dist['id'])
     postcode_errors = db.get_district_postcode_errors(district_id=dist['id'])
     mismatches = db.get_district_mismatches(district_id=dist['id'])
+    duplicates = db.get_district_duplicates(district_id=dist['id'])
 
     html = ("""
 <!DOCTYPE html>
@@ -215,6 +216,29 @@ for dist in districts:
             html += ('<tr><td><a href="' + db.osm_url_prefix + this_error['osm_type'] + '/' +
                      str(this_error['osm_id']) + '" target="_blank">' + str(this_error['osm_name']) + '</a></td>\n' +
                      '<td>' + str(this_error['osm_fhrsid']) + '</td>\n' +
+                     '<td><a href=\"' + db.josm_url_prefix + 'load_object?objects=' +
+                     this_error['osm_ident'] + '\" target="_blank">Edit in JOSM</a></td></tr>\n')
+        html += '</table>'
+
+    html += ("""
+    <h3>Duplicate fhrs:id tags</h3>""")
+
+    if len(duplicates) < 1:
+        html += "<p>There are no fhrs:id duplicates to show for this district.</p>"
+    else:
+        html += ('<p>Below is a list of all the OSM entities which have an fhrs:id tag that is ' +
+                 'shared with at least one of the OSM entities in this district. N.B. This does ' +
+                 'not necessarily indicate an error with the OSM data.</p>' +
+                 '<table>\n' +
+                 '    <tr><th>FHRS ID</th><th>OSM name</th><th>FHRS name</th><th></th></tr>\n')
+        for this_error in duplicates:
+            html += ('<tr><td>' + this_error['fhrs:id'] + '</td>' +
+                     '<td><a href="' + db.osm_url_prefix + this_error['type'] + '/' +
+                     str(this_error['id']) + '" target="_blank">' +
+                     str(this_error['osm_name']) + '</a></td>\n' +
+                     '<td><a href="' + db.fhrs_est_url_prefix + this_error['fhrs:id'] +
+                     db.fhrs_est_url_suffix + '" target="_blank">' +
+                     str(this_error['fhrs_name']) + '</a></td>\n' +
                      '<td><a href=\"' + db.josm_url_prefix + 'load_object?objects=' +
                      this_error['osm_ident'] + '\" target="_blank">Edit in JOSM</a></td></tr>\n')
         html += '</table>'
