@@ -614,7 +614,8 @@ class Database(object):
                'CONCAT(SUBSTRING(osm_type FROM 1 FOR 1), osm_id) AS osm_ident, fhrs_id,\n' +
                'osm_name, fhrs_name, distance\n' +
                'FROM ' + distant_matches_view + '\n' +
-               'WHERE district_id = %s;')
+               'WHERE district_id = %s' +
+               'ORDER BY distance;')
         values = (district_id,)
         dict_cur.execute(sql, values)
 
