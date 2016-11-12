@@ -16,3 +16,6 @@ input_pbf="data/great-britain-latest.osm.pbf"
 
 # path of osmosis binary if we're using a planet extract
 osmosis_bin="~/Downloads/osmosis-latest/bin/osmosis"
+
+# distance in metres to use when flagging up distant matches
+warning_distance_metres=500

@@ -23,6 +23,11 @@ for dist in districts:
     f.write(db.get_suggest_matches_geojson(district_id=dist['id']))
     f.close
 
+    filename = 'html/json/distant-matches-' + str(dist['id']) + '.json'
+    f = open(filename, 'w')
+    f.write(db.get_distant_matches_geojson(district_id=dist['id']))
+    f.close
+
     filename = 'html/json/boundary-' + str(dist['id']) + '.json'
     f = open(filename, 'w')
     f.write(db.get_district_boundary_geojson(district_id=dist['id']))
@@ -163,6 +168,9 @@ for dist in districts:
     postcode but no fhrs:id tag.</p>
 
     <h3>Overview</h3>
+    <p>Dotted lines in the map below show the difference between the OSM and FHRS locations for
+    establishments that have been matched when those locations are more than """ +
+    str(config.warning_distance_metres) + """ metres apart.</p>
     <div id="overview_map" style="width: 800px; height: 600px"></div>
 
     <h3>Suggested matches</h3>
@@ -316,7 +324,24 @@ for dist in districts:
             weight: 1,
             opacity: 1,
             fillOpacity: 0.5
-        }
+        };
+
+
+        // add distant matches layer to overview map
+
+        var distant_matches_json = './json/distant-matches-""" + str(dist['id']) + """.json';
+
+        $.getJSON(distant_matches_json, function(data) {
+            var overviewLineLayer = L.geoJson(data, {
+                style: {
+                    "color": "black",
+                    "weight": 3,
+                    "opacity": 0.5,
+                    "dashArray": "5, 5"
+                }
+            }).addTo(overview_map);
+            overviewLineLayer.bringToFront();
+        });
 
 
         // add marker layer to each map

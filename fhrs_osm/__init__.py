@@ -263,6 +263,36 @@ class Database(object):
         cur.execute(sql, values)
         self.connection.commit()
 
+    def create_distant_matches_view(self, view_name='distant_matches',
+                                    osm_table='osm', fhrs_table='fhrs_establishments',
+                                    distance_metres=500):
+        """(Re)create database view to compare the OSM and FHRS locations for
+        matched establishments. Filters out matches using distance_metres to
+        show only distant matches. Drop any dependent views first.
+
+        view_name (string): name for the view we're creating e.g. 'match_lines'
+        osm_table (string): name of OSM database table
+        fhrs_table (string): name of FHRS establishments database table
+        distance_metres (numeric): minimum distance between OSM/FHRS locations
+        """
+
+        cur = self.connection.cursor()
+        cur.execute('drop view if exists ' + view_name + ' cascade')
+        self.connection.commit()
+
+        sql = ('CREATE VIEW ' + view_name + ' AS\n' +
+               'SELECT o.id, f."FHRSID", o.district_id,\n' +
+               'ST_MakeLine(o.geog::geometry, f.geog::geometry) AS geom,\n' +
+               'ST_Distance(o.geog, f.geog) AS distance\n' +
+               'FROM ' + osm_table + ' o\n' +
+               'FULL OUTER JOIN ' + fhrs_table + ' f ON o."fhrs:id"::text = f."FHRSID"::text\n' +
+               'WHERE o.geog IS NOT NULL AND f.geog IS NOT NULL\n' +
+               # first false = don't use spheroid for a faster calculation
+               'AND ST_DWithin(o.geog, f.geog, ' + str(distance_metres) + ', FALSE) IS FALSE;')
+
+        cur.execute(sql)
+        self.connection.commit()
+
     def get_overview_geojson(self, view_name='compare', district_id=182):
         """Create GeoJSON-formatted string for a single district using
         comparison view. This can be used to display data on a Leaflet slippy
@@ -378,6 +408,34 @@ class Database(object):
                ") AS fc;")
 
         cur.execute(sql)
+        return cur.fetchone()[0]
+
+    def get_distant_matches_geojson(self, view_name='distant_matches', district_id=182):
+        """Create GeoJSON-formatted string for a single district using distant
+        matches view. This can be used to display data on a Leaflet slippy map.
+
+        view_name (string): name of view from which to gather data
+        district_id (integer): gid of district to use for filtering
+        Returns string
+        """
+
+        cur = self.connection.cursor()
+
+        # need to cast JSON as text to prevent result being interpreted into
+        # Python structures (psycopg2 issue #172)
+        sql = ("SELECT CAST(row_to_json(fc) AS TEXT)\n" +
+               "FROM (\n" +
+               "   SELECT 'FeatureCollection' AS type, array_to_json(array_agg(f)) AS features\n" +
+               "   FROM (\n" +
+               "       SELECT 'Feature' AS type,\n" +
+               "       ST_AsGeoJSON(geom)::json AS geometry\n" +
+               "       FROM " + view_name + " AS lg\n" +
+               "       WHERE district_id = %s\n" +
+               "   ) AS f\n" +
+               ") AS fc;")
+        values = (district_id,)
+
+        cur.execute(sql, values)
         return cur.fetchone()[0]
 
     def get_district_boundary_geojson(self, districts_table='districts', district_id=182):
