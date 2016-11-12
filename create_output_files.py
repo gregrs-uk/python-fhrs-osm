@@ -23,6 +23,11 @@ for dist in districts:
     f.write(db.get_suggest_matches_geojson(district_id=dist['id']))
     f.close
 
+    filename = 'html/json/distant-matches-' + str(dist['id']) + '.json'
+    f = open(filename, 'w')
+    f.write(db.get_distant_matches_geojson(district_id=dist['id']))
+    f.close
+
     filename = 'html/json/boundary-' + str(dist['id']) + '.json'
     f = open(filename, 'w')
     f.write(db.get_district_boundary_geojson(district_id=dist['id']))
@@ -68,6 +73,7 @@ for dist in districts:
     postcode_errors = db.get_district_postcode_errors(district_id=dist['id'])
     mismatches = db.get_district_mismatches(district_id=dist['id'])
     duplicates = db.get_district_duplicates(district_id=dist['id'])
+    distant_matches = db.get_district_distant_matches(district_id=dist['id'])
 
     html = ("""
 <!DOCTYPE html>
@@ -173,6 +179,10 @@ for dist in districts:
     postcode but no fhrs:id tag.</p>
 
     <h3>Overview</h3>
+    <p>Dotted lines in the map below show the difference between the OSM and FHRS locations for
+    establishments that have been matched when those locations are more than """ +
+    str(config.warning_distance_metres) + """ metres apart. Please see the table below for a
+    list of these distant matches.</p>
     <div id="overview_map" style="width: 800px; height: 600px"></div>
 
     <h3>Suggested matches</h3>
@@ -239,6 +249,31 @@ for dist in districts:
                      '<td><a href="' + db.fhrs_est_url_prefix + this_error['fhrs:id'] +
                      db.fhrs_est_url_suffix + '" target="_blank">' +
                      str(this_error['fhrs_name']) + '</a></td>\n' +
+                     '<td><a href=\"' + db.josm_url_prefix + 'load_object?objects=' +
+                     this_error['osm_ident'] + '\" target="_blank">Edit in JOSM</a></td></tr>\n')
+        html += '</table>'
+
+    html += ("""
+    <h3>Distant matches</h3>""")
+
+    if len(distant_matches) < 1:
+        html += "<p>There are no distant matches to show for this district.</p>"
+    else:
+        html += ('<p>Below is a list of all the OSM entities which have been matched to an FHRS ' +
+                 'establishment where the OSM and FHRS locations are more than ' +
+                 str(config.warning_distance_metres) + ' metres apart. N.B. This does ' +
+                 'not necessarily indicate an error with the OSM data as OSM locations tend ' +
+                 'to be more accurate than those in the FHRS database.</p>' +
+                 '<table>\n' +
+                 '    <tr><th>OSM name</th><th>FHRS name</th><th>Distance / m</th><th></th></tr>\n')
+        for this_error in distant_matches:
+            html += ('<tr><td><a href="' + db.osm_url_prefix + this_error['osm_type'] + '/' +
+                     str(this_error['osm_id']) + '" target="_blank">' +
+                     str(this_error['osm_name']) + '</a></td>\n' +
+                     '<td><a href="' + db.fhrs_est_url_prefix + str(this_error['fhrs_id']) +
+                     db.fhrs_est_url_suffix + '" target="_blank">' +
+                     str(this_error['fhrs_name']) + '</a></td>\n' +
+                     '<td>' + str(int(this_error['distance'])) + '</td>\n' +
                      '<td><a href=\"' + db.josm_url_prefix + 'load_object?objects=' +
                      this_error['osm_ident'] + '\" target="_blank">Edit in JOSM</a></td></tr>\n')
         html += '</table>'
@@ -326,7 +361,24 @@ for dist in districts:
             weight: 1,
             opacity: 1,
             fillOpacity: 0.5
-        }
+        };
+
+
+        // add distant matches layer to overview map
+
+        var distant_matches_json = './json/distant-matches-""" + str(dist['id']) + """.json';
+
+        $.getJSON(distant_matches_json, function(data) {
+            var overviewLineLayer = L.geoJson(data, {
+                style: {
+                    "color": "black",
+                    "weight": 3,
+                    "opacity": 0.5,
+                    "dashArray": "5, 5"
+                }
+            }).addTo(overview_map);
+            overviewLineLayer.bringToFront();
+        });
 
 
         // add marker layer to each map
