@@ -3,6 +3,7 @@
 source ~/gregrs-python-env/bin/activate || exit 1
 source ~/python-fhrs-osm/config.py || exit 1
 
+cd ~/python-fhrs-osm || exit 1
 python get_fhrs_data.py || exit 1
 
 echo "Downloading latest OSM data"
