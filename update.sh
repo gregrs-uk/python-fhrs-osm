@@ -9,7 +9,7 @@ python get_fhrs_data.py || exit 1
 echo "Downloading latest OSM data"
 cd ~/python-fhrs-osm/data || exit 1
 mv great-britain-latest.osm.pbf great-britain-latest.osm.pbf.old
-wget http://download.geofabrik.de/europe/great-britain-latest.osm.pbf \
+wget --no-verbose http://download.geofabrik.de/europe/great-britain-latest.osm.pbf \
 	|| exit 1
 rm great-britain-latest.osm.pbf.old
 
