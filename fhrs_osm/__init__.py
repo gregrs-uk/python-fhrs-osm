@@ -455,12 +455,15 @@ class Database(object):
         cur.execute(sql, values)
         return cur.fetchone()[0]
 
-    def get_district_boundary_geojson(self, districts_table='districts', district_id=182):
-        """Create GeoJSON-formatted string for a single district's boundary.
-        This can be used to display data on a Leaflet slippy map.
+    def get_district_boundary_geojson(self, districts_table='districts',
+                                      district_id=None, simplify=None):
+        """Create GeoJSON-formatted string for the boundary of a single
+        district or - if no district_id is supplied - all districts. This can
+        be used to display data on a Leaflet slippy map.
 
         districts_table (string): name of districts database table
         district_id (integer): gid of district
+        simplify (numeric): amount of geometry simplification e.g. 0.002
         Returns string
         """
 
@@ -468,21 +471,30 @@ class Database(object):
 
         # need to cast JSON as text to prevent result being interpreted into
         # Python structures (psycopg2 issue #172)
-        sql = ("SELECT CAST(row_to_json(fc) AS TEXT)\n" +
-               "FROM (\n" +
-               "   SELECT 'FeatureCollection' AS type, array_to_json(array_agg(f)) AS features\n" +
-               "   FROM (\n" +
-               "       SELECT 'Feature' AS type,\n" +
-               "       ST_AsGeoJSON(ST_Boundary(poly_geom))::json AS geometry FROM (\n" +
-               "           SELECT gid, geom AS poly_geom\n" +
-               "           FROM " + districts_table + " AS lg\n" +
-               "       ) AS polygons\n" +
-               "       WHERE gid = %s\n" +
-               "   ) AS f\n" +
-               ") AS fc;")
-        values = (district_id,)
+        sql =  ("SELECT CAST(row_to_json(fc) AS TEXT)\n" +
+                "FROM (\n" +
+                "   SELECT 'FeatureCollection' AS type, array_to_json(array_agg(f)) AS features\n" +
+                "   FROM (\n" +
+                "       SELECT 'Feature' AS type,\n" +
+                "       ST_AsGeoJSON(ST_Boundary(poly_geom))::json AS geometry FROM (\n" +
+                "           SELECT gid, ")
+        if simplify:
+            sql += "ST_Simplify(geom, " + str(simplify) + ") AS poly_geom\n"
+        else:
+            sql += "geom AS poly_geom\n"
+        sql += ("           FROM " + districts_table + " AS lg\n" +
+                "       ) AS polygons\n")
+        if district_id:
+            sql += "       WHERE gid = %s\n"
+        sql += ("   ) AS f\n" +
+                ") AS fc;")
 
-        cur.execute(sql, values)
+        if district_id:
+            values = (district_id,)
+            cur.execute(sql, values)
+        else:
+            cur.execute(sql)
+
         return cur.fetchone()[0]
 
     def get_district_stats(self, district_id=182):
