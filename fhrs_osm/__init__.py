@@ -1027,9 +1027,9 @@ class FHRSDataset(object):
 
         # if this is the first page or there is another to download
         while (page == 1 or page <= total_pages):
-            # download this page (max 5000 establishments) and add to list
+            # download this page (max 200 establishments) and add to list
             endpoint = ('Establishments?localAuthorityId=' + str(authority_id) +
-                        '&pageNumber=' + str(page) + '&pageSize=5000') 
+                        '&pageNumber=' + str(page) + '&pageSize=200') 
             xml_list.append(self.api_download(endpoint=endpoint))
             if (page == 1):
                 # after the first page has been downloaded, get total number of pages
