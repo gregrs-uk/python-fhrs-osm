@@ -294,13 +294,16 @@ class Database(object):
         cur.execute(sql)
         self.connection.commit()
 
-    def get_overview_geojson(self, view_name='compare', district_id=182):
+    def get_overview_geojson(self, view_name='compare', district_id=182, cluster_metres=3.5):
         """Create GeoJSON-formatted string for a single district using
         comparison view. This can be used to display data on a Leaflet slippy
-        map. Establishments with the same lat/lon are aggregated into a list.
+        map. Establishments within cluster_metres of each other are
+        aggregated into a list. (This distance variable is approximate as it
+        has to be converted into degrees of lat/lon.)
 
         view_name (string): name of view from which to gather data
         district_id (integer): gid of district to use for filtering
+        cluster_metres (numeric): cluster distance in metres (approx.)
         Returns string
         """
 
@@ -308,50 +311,59 @@ class Database(object):
 
         # need to cast JSON as text to prevent result being interpreted into
         # Python structures (psycopg2 issue #172)
-        sql = ("SELECT CAST(row_to_json(fc) AS TEXT)\n" +
+        sql = ("SELECT CAST(row_to_json(the_feature_collection) AS TEXT)\n" +
                "FROM (\n" +
-               "   SELECT 'FeatureCollection' AS type, array_to_json(array_agg(f)) AS features\n" +
-               "   FROM (\n" +
-               "       SELECT 'Feature' AS type,\n" +
-               "       ST_AsGeoJSON(COALESCE(osm_geog, fhrs_geog))::json AS geometry,\n" +
-               "       row_to_json((\n" +
-               "           SELECT l FROM (\n" +
-               "               SELECT string_agg(\n" +
-                                   # when FHRS establishment not in OSM
-               "                   CASE WHEN fhrs_fhrsid IS NOT NULL AND osm_fhrsid IS NULL THEN\n" +
-               "                       CONCAT(COALESCE(osm_name, fhrs_name),\n" +
-               "                              ' (<a href=\"" + self.fhrs_est_url_prefix + "',\n" +
-               "                              fhrs_fhrsid, '" + self.fhrs_est_url_suffix + "\"" +
-                                             "target=\"_blank\">', status, '</a>)')\n" +
-                                   # when in OSM and possibly FHRS too
-               "                   ELSE\n" +
-               "                       CONCAT(COALESCE(osm_name, fhrs_name),\n" +
-               "                              ' (<a href=\"" + self.osm_url_prefix + "',\n" +
-               "                              TRIM(TRAILING ' ' FROM osm_type),\n" +
-               "                              '/', osm_id, '\" target=\"_blank\">',\n" +
-               "                              status, '</a>)<br />',\n" +
-               "                              '<a href=\"" + self.josm_url_prefix +
-                                             "load_object?objects=',\n" +
-               "                              substring(osm_type from 1 for 1), osm_id,\n" +
-               "                              '\" target=\"_blank\">Edit in JOSM</a>')\n" +
-               "                   END, '<br />'\n" +
-               "               ) AS list,\n" +
-               "               COUNT(CASE WHEN status = 'matched' THEN 1 END) AS matched,\n" +
-               "               COUNT(CASE WHEN status = 'matched_postcode_error' THEN 1 END)\n" +
-               "                   AS matched_postcode_error,\n" +
-               "               COUNT(CASE WHEN status = 'mismatch' THEN 1 END) AS mismatch,\n" +
-               "               COUNT(CASE WHEN status = 'FHRS' THEN 1 END) AS fhrs,\n" +
-               "               COUNT(CASE WHEN status = 'OSM_with_postcode' THEN 1 END)\n" +
-               "                   AS osm_with_postcode,\n" +
-               "               COUNT(CASE WHEN status = 'OSM_no_postcode' THEN 1 END)\n" +
-               "                   AS osm_no_postcode\n" +
-               "           ) AS l\n" +
-               "       )) AS properties\n" +
-               "       FROM " + view_name + " AS lg\n" +
-               "       WHERE COALESCE(osm_district_id, fhrs_district_id) = %s\n" +
-               "       GROUP BY COALESCE(osm_geog, fhrs_geog)\n" +
-               "   ) AS f\n" +
-               ") AS fc;")
+               "    SELECT 'FeatureCollection' AS type,\n" +
+               "    array_to_json(array_agg(the_features)) AS features\n" +
+               "    FROM (\n" +
+               "        SELECT 'Feature' AS type,\n" +
+               "        ST_AsGeoJSON(\n" +
+               "            ST_Centroid(ST_Collect(pref_geog::geometry))\n" +
+               "        )::json AS geometry,\n" +
+               "        row_to_json((\n" +
+               "            SELECT properties_row FROM (\n" +
+               "                SELECT string_agg(\n" +
+                                    # when FHRS establishment not in OSM
+               "                    CASE WHEN fhrs_fhrsid IS NOT NULL AND osm_fhrsid IS NULL THEN\n" +
+               "                        CONCAT(pref_name,\n" +
+               "                               ' (<a href=\"" + self.fhrs_est_url_prefix + "',\n" +
+               "                               fhrs_fhrsid, '" + self.fhrs_est_url_suffix + "\"" +
+                                              "target=\"_blank\">', status, '</a>)')\n" +
+                                    # when in OSM and possibly FHRS too
+               "                    ELSE\n" +
+               "                        CONCAT(pref_name,\n" +
+               "                               ' (<a href=\"" + self.osm_url_prefix + "',\n" +
+               "                               TRIM(TRAILING ' ' FROM osm_type),\n" +
+               "                               '/', osm_id, '\" target=\"_blank\">',\n" +
+               "                               status, '</a>)<br />',\n" +
+               "                               '<a href=\"" + self.josm_url_prefix +
+                                              "load_object?objects=',\n" +
+               "                               substring(osm_type from 1 for 1), osm_id,\n" +
+               "                               '\" target=\"_blank\">Edit in JOSM</a>')\n" +
+               "                    END, '<br />'\n" +
+               "                ) AS list,\n" +
+               "                COUNT(CASE WHEN status = 'matched' THEN 1 END) AS matched,\n" +
+               "                COUNT(CASE WHEN status = 'matched_postcode_error' THEN 1 END)\n" +
+               "                    AS matched_postcode_error,\n" +
+               "                COUNT(CASE WHEN status = 'mismatch' THEN 1 END) AS mismatch,\n" +
+               "                COUNT(CASE WHEN status = 'FHRS' THEN 1 END) AS fhrs,\n" +
+               "                COUNT(CASE WHEN status = 'OSM_with_postcode' THEN 1 END)\n" +
+               "                    AS osm_with_postcode,\n" +
+               "                COUNT(CASE WHEN status = 'OSM_no_postcode' THEN 1 END)\n" +
+               "                    AS osm_no_postcode\n" +
+               "            ) AS properties_row\n" +
+               "        )) AS properties\n" +
+               "        FROM (\n" +
+               "            SELECT *, ST_ClusterDBSCAN(COALESCE(osm_geog, fhrs_geog)::geometry,\n" +
+               "               " + str(cluster_metres) + "/111111, 1) OVER () AS cl_id,\n" +
+               "            COALESCE(osm_geog, fhrs_geog) as pref_geog,\n" +
+               "            COALESCE(osm_name, fhrs_name) as pref_name\n" +
+               "            FROM " + view_name + "\n" +
+               "            WHERE coalesce(osm_district_id, fhrs_district_id) = %s\n" +
+               "        ) AS all_points\n" +
+               "        GROUP BY cl_id\n" +
+               "    ) AS the_features\n" +
+               ") AS the_feature_collection;")
         values = (district_id,)
 
         cur.execute(sql, values)
