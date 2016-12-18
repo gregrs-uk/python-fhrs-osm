@@ -948,11 +948,17 @@ class OSMDataset(object):
             poly = Polygon(geom)
             cent = poly.centroid
             return {'lat': cent.y, 'lon': cent.x}
-        else:
-            # if way has fewer than 3 points, use average position of first two nodes
+        elif len(way.nodes) == 2:
+            # if way has 2 nodes, use average position
             lat = (way.nodes[0].lat + way.nodes[1].lat) / 2
             lon = (way.nodes[0].lon + way.nodes[1].lon) / 2
             return {'lat': lat, 'lon': lon}
+        elif len(way.nodes) == 1:
+            # if way has 1 node, use that position
+            # (unusual and certainly a bug but possible)
+            return {'lat': way.nodes[0].lat, 'lon': way.nodes[0].lon}
+        else:
+            raise RuntimeError
 
 
 class FHRSDataset(object):
