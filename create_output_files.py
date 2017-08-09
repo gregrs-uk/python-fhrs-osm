@@ -109,7 +109,8 @@ for dist in districts:
     <table>
         <tr>
             <td style='color: #4daf4a;'>
-                OSM nodes/ways with valid fhrs:id and matching postcode</td>
+                OSM nodes/ways with valid fhrs:id and matching addr:postcode or
+                not:addr:postcode</td>
             <td>""" + str(dist['stats']['matched']) + """</td>
             <td></td>
         </tr>
@@ -167,9 +168,9 @@ for dist in districts:
         </tr>
     </table>
     <p style="font-size: 80%">*A match is considered successful when the OSM node/way's fhrs:id
-    matches an FHRS one and their postcodes are identical.
-    <p style="font-size: 80%">**OSM nodes/ways with a postcode that matches the FHRS one or with a
-    postcode but no fhrs:id tag.</p>
+    matches an FHRS one and the OSM addr:postcode or not:addr:postcode matches the FHRS one.</p>
+    <p style="font-size: 80%">**OSM nodes/ways with an addr:postcode or not:addr:postcode that
+    matches the FHRS postcode, or with an addr:postcode but no fhrs:id tag.</p>
 
     <h3>Overview</h3>
     <p>Dotted lines in the map below show the difference between the OSM and FHRS locations for
@@ -188,8 +189,11 @@ for dist in districts:
     if len(postcode_errors) < 1:
         html += "<p>There are no postcode errors to show for this district.</p>"
     else:
-        html += ('<p>Below is a list of OSM entities which have a valid fhrs:id tag but a missing/mismatched addr:postcode. ' +
-                 'N.B. This does not necessarily indicate an error with the OSM data.</p>' +
+        html += ('<p>Below is a list of OSM entities which have a valid fhrs:id tag but a ' +
+                 'missing/mismatched addr:postcode. N.B. This does not necessarily indicate an ' +
+                 'error with the OSM data. If a not:addr:postcode tag matching the FHRS ' +
+                 'postcode is found, the OSM entity is removed from the table and is ' +
+                 'instead considered a successful match.</p>\n' +
                  '<table>\n' +
                  '    <tr><th>Name</th><th>OSM addr:postcode</th><th>FHRS postcode</th><th></th></tr>\n')
         for this_error in postcode_errors:
