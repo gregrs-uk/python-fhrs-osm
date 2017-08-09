@@ -215,8 +215,8 @@ for dist in districts:
         html += ('<p>Below is a list of OSM entities which have an fhrs:id tag for which there ' +
                  'is no matching FHRS establishment. This may indicate an establishment which ' +
                  'has closed, but please check before making any changes to the OSM data. ' +
-                 'Parsing multiple FHRS IDs separated by semicolons is currently unsupported so' +
-                 'these may also appear below.</p>' +
+                 'Parsing multiple FHRS IDs separated by semicolons is currently unsupported so ' +
+                 'these may also appear below.</p>\n' +
                  '<table>\n' +
                  '    <tr><th>Name</th><th>FHRS ID</th><th></th></tr>\n')
         for this_error in mismatches:
