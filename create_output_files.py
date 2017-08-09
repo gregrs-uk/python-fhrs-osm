@@ -8,65 +8,66 @@ db.connect()
 print "Getting list of districts which contain some data"
 districts = db.get_inhabited_districts()
 
+json_details = [{'filename': 'overview', 'method': db.get_overview_geojson},
+                {'filename': 'suggest-matches', 'method': db.get_suggest_matches_geojson},
+                {'filename': 'distant-matches', 'method': db.get_distant_matches_geojson},
+                {'filename': 'boundary', 'method': db.get_district_boundary_geojson}]
+
+gpx_details = [{'filename': 'fhrs-unmatched',
+                'geog_col': 'fhrs_geog',
+                'name_col':'fhrs_name',
+                'view_name':'compare',
+                'district_id_col':'fhrs_district_id',
+                'status':'FHRS'},
+               {'filename': 'osm-unmatched-with-postcode',
+                'geog_col':'osm_geog',
+                'name_col':'osm_name',
+                'view_name':'compare',
+                'district_id_col':'osm_district_id',
+                'status':'OSM_with_postcode'},
+               {'filename': 'osm-unmatched-no-postcode',
+                'geog_col':'osm_geog',
+                'name_col':'osm_name',
+                'view_name':'compare',
+                'district_id_col':'osm_district_id',
+                'status':'OSM_no_postcode'},
+               {'filename': 'osm-invalid-fhrsid',
+                'geog_col':'osm_geog',
+                'name_col':'osm_name',
+                'view_name':'compare',
+                'district_id_col':'osm_district_id',
+                'status':'mismatch'},
+               {'filename': 'suggested-matches',
+                'geog_col':'osm_geog',
+                'name_col':'osm_name',
+                'view_name':'suggest_matches',
+                'district_id_col':'osm_district_id',
+                'status':None}
+              ]
+
 # loop round inhabited districts to create relevant files for each district
 
 for dist in districts:
     print "Creating GeoJSON, GPX and HTML files for " + dist['name']
 
-    filename = 'html/json/overview-' + str(dist['id']) + '.json'
-    f = open(filename, 'w')
-    f.write(db.get_overview_geojson(district_id=dist['id']))
-    f.close
+    # create GeoJSON files as specified in json_details above
+    for this_json in json_details:
+        path = 'html/json/' + this_json['filename'] + '-' + str(dist['id']) + '.json'
+        f = open(path, 'w')
+        f.write(this_json['method'](district_id=dist['id']))
+        f.close
 
-    filename = 'html/json/suggest-matches-' + str(dist['id']) + '.json'
-    f = open(filename, 'w')
-    f.write(db.get_suggest_matches_geojson(district_id=dist['id']))
-    f.close
-
-    filename = 'html/json/distant-matches-' + str(dist['id']) + '.json'
-    f = open(filename, 'w')
-    f.write(db.get_distant_matches_geojson(district_id=dist['id']))
-    f.close
-
-    filename = 'html/json/boundary-' + str(dist['id']) + '.json'
-    f = open(filename, 'w')
-    f.write(db.get_district_boundary_geojson(district_id=dist['id']))
-    f.close
-
-    filename = 'html/gpx/fhrs-unmatched-' + str(dist['id']) + '.gpx'
-    f = open(filename, 'w')
-    f.write(db.get_gpx(geog_col='fhrs_geog', name_col='fhrs_name',
-                       view_name='compare', district_id_col='fhrs_district_id',
-                       district_id=dist['id'], status='FHRS'))
-    f.close
-
-    filename = 'html/gpx/osm-unmatched-with-postcode-' + str(dist['id']) + '.gpx'
-    f = open(filename, 'w')
-    f.write(db.get_gpx(geog_col='osm_geog', name_col='osm_name',
-                       view_name='compare', district_id_col='osm_district_id',
-                       district_id=dist['id'], status='OSM_with_postcode'))
-    f.close
-
-    filename = 'html/gpx/osm-unmatched-no-postcode-' + str(dist['id']) + '.gpx'
-    f = open(filename, 'w')
-    f.write(db.get_gpx(geog_col='osm_geog', name_col='osm_name',
-                       view_name='compare', district_id_col='osm_district_id',
-                       district_id=dist['id'], status='OSM_no_postcode'))
-    f.close
-
-    filename = 'html/gpx/osm-invalid-fhrsid-' + str(dist['id']) + '.gpx'
-    f = open(filename, 'w')
-    f.write(db.get_gpx(geog_col='osm_geog', name_col='osm_name',
-                       view_name='compare', district_id_col='osm_district_id',
-                       district_id=dist['id'], status='mismatch'))
-    f.close
-
-    filename = 'html/gpx/suggested-matches-' + str(dist['id']) + '.gpx'
-    f = open(filename, 'w')
-    f.write(db.get_gpx(geog_col='osm_geog', name_col='osm_name',
-                       view_name='suggest_matches', district_id_col='osm_district_id',
-                       district_id=dist['id']))
-    f.close
+    # create GPX files as specified in gpx_details above
+    for this_gpx in gpx_details:
+        path = 'html/gpx/' + this_gpx['filename'] + '-' + str(dist['id']) + '.gpx'
+        f = open(path, 'w')
+        f.write(db.get_gpx(geog_col=this_gpx['geog_col'],
+                           name_col=this_gpx['name_col'],
+                           view_name=this_gpx['view_name'],
+                           district_id_col=this_gpx['district_id_col'],
+                           district_id=dist['id'],
+                           status=this_gpx['status']))
+        f.close
 
     # add stats to district's dictionary so that we can access them later
     dist['stats'] = db.get_district_stats(district_id=dist['id'])
@@ -84,7 +85,9 @@ for dist in districts:
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.2.0/dist/leaflet.css"
+      integrity="sha512-M2wvCLH6DSRazYeZRIm1JnYyh22purTM+FDB5CsyxtQJYeKq83arPe5wgbNmcFXGqiSH2XR8dT/fJISVA1r/zQ=="
+      crossorigin=""/>
 
     <style>
         table, th, td {
@@ -115,39 +118,40 @@ for dist in districts:
     <p>The colours in this table act as a key for the maps below</p>
     <table>
         <tr>
-            <td style='color: green'>
-                OSM nodes/ways with valid fhrs:id and matching postcode</td>
+            <td style='color: #4daf4a;'>
+                OSM nodes/ways with valid fhrs:id and matching addr:postcode or
+                not:addr:postcode</td>
             <td>""" + str(dist['stats']['matched']) + """</td>
             <td></td>
         </tr>
         <tr>
-            <td><span style='color: yellow; background-color: gray'>
+            <td><span style='color: #984ea3;'>
                 Relevant OSM nodes/ways with postcode but no valid fhrs:id</span></td>
             <td>""" + str(dist['stats']['OSM_with_postcode']) + """</td>
             <td><a href="gpx/osm-unmatched-with-postcode-""" +
                 str(dist['id']) + """.gpx" download>GPX</a></td>
         </tr>
         <tr>
-            <td style='color: orange;'>
+            <td style='color: #ff7f00;'>
                 Relevant OSM nodes/ways without postcode or fhrs:id</td>
             <td>""" + str(dist['stats']['OSM_no_postcode']) + """</td>
             <td><a href="gpx/osm-unmatched-no-postcode-""" +
                 str(dist['id']) + """.gpx" download>GPX</a></td>
         </tr>
             <tr>
-            <td style='color: red;'>
+            <td style='color: #e31a1c;'>
                 OSM nodes/ways with valid fhrs:id but mismatched/missing postcode</td>
             <td>""" + str(dist['stats']['matched_postcode_error']) + """</td>
             <td></td>
         </tr>
         <tr>
-            <td style='color: red;'>OSM nodes/ways with invalid fhrs:id</td>
+            <td style='color: #e31a1c;'>OSM nodes/ways with invalid fhrs:id</td>
             <td>""" + str(dist['stats']['mismatch']) + """</td>
             <td><a href="gpx/osm-invalid-fhrsid-""" +
                 str(dist['id']) + """.gpx" download>GPX</a></td>
         </tr>
         <tr>
-            <td style='color: blue;'>FHRS establishments with no matching OSM node/way</td>
+            <td style='color: #377db8;'>FHRS establishments with no matching OSM node/way</td>
             <td>""" + str(dist['stats']['FHRS']) + """</td>
             <td><a href="gpx/fhrs-unmatched-""" +
                 str(dist['id']) + """.gpx" download>GPX</a></td>
@@ -174,9 +178,9 @@ for dist in districts:
         </tr>
     </table>
     <p style="font-size: 80%">*A match is considered successful when the OSM node/way's fhrs:id
-    matches an FHRS one and their postcodes are identical.
-    <p style="font-size: 80%">**OSM nodes/ways with a postcode that matches the FHRS one or with a
-    postcode but no fhrs:id tag.</p>
+    matches an FHRS one and the OSM addr:postcode or not:addr:postcode matches the FHRS one.</p>
+    <p style="font-size: 80%">**OSM nodes/ways with an addr:postcode or not:addr:postcode that
+    matches the FHRS postcode, or with an addr:postcode but no fhrs:id tag.</p>
 
     <h3>Overview</h3>
     <p>Dotted lines in the map below show the difference between the OSM and FHRS locations for
@@ -195,8 +199,11 @@ for dist in districts:
     if len(postcode_errors) < 1:
         html += "<p>There are no postcode errors to show for this district.</p>"
     else:
-        html += ('<p>Below is a list of OSM entities which have a valid fhrs:id tag but a missing/mismatched addr:postcode. ' +
-                 'N.B. This does not necessarily indicate an error with the OSM data.</p>' +
+        html += ('<p>Below is a list of OSM entities which have a valid fhrs:id tag but a ' +
+                 'missing/mismatched addr:postcode. N.B. This does not necessarily indicate an ' +
+                 'error with the OSM data. If a not:addr:postcode tag matching the FHRS ' +
+                 'postcode is found, the OSM entity is removed from the table and is ' +
+                 'instead considered a successful match.</p>\n' +
                  '<table>\n' +
                  '    <tr><th>Name</th><th>OSM addr:postcode</th><th>FHRS postcode</th><th></th></tr>\n')
         for this_error in postcode_errors:
@@ -218,8 +225,8 @@ for dist in districts:
         html += ('<p>Below is a list of OSM entities which have an fhrs:id tag for which there ' +
                  'is no matching FHRS establishment. This may indicate an establishment which ' +
                  'has closed, but please check before making any changes to the OSM data. ' +
-                 'Parsing multiple FHRS IDs separated by semicolons is currently unsupported so' +
-                 'these may also appear below.</p>' +
+                 'Parsing multiple FHRS IDs separated by semicolons is currently unsupported so ' +
+                 'these may also appear below.</p>\n' +
                  '<table>\n' +
                  '    <tr><th>Name</th><th>FHRS ID</th><th></th></tr>\n')
         for this_error in mismatches:
@@ -292,7 +299,9 @@ for dist in districts:
     <p>Contains <a href="http://www.ordnancesurvey.co.uk" target="_blank">Ordnance Survey</a>
     data &copy Crown copyright and database right</p>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet@1.2.0/dist/leaflet.js"
+      integrity="sha512-lInM/apFSqyy1o6s89K4iQUKg6ppXEgsVxT35HbzUupEVRh2Eu9Wdl4tHj7dZO0s1uvplcYGmt3498TtHq+log=="
+      crossorigin=""></script>
     <script src="https://code.jquery.com/jquery-2.1.0.min.js"></script>
 
     <script>
@@ -308,7 +317,7 @@ for dist in districts:
         L.tileLayer('https://a.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 18,
             attribution: '&copy; <a href="http://openstreetmap.org" target="_blank">OpenStreetMap' +
-                '</a> contributors, Contains <a href="http://www.ordnancesurvey.co.uk"' +
+                '</a> contributors. Contains <a href="http://www.ordnancesurvey.co.uk"' +
                 'target="_blank">Ordnance Survey</a> and ' +
                 '<a href="http://ratings.food.gov.uk/open-data/" target="_blank">' +
                 'Food Hygiene Rating Scheme</a> data &copy Crown copyright and database right'
@@ -317,7 +326,7 @@ for dist in districts:
         L.tileLayer('https://a.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 18,
             attribution: '&copy; <a href="http://openstreetmap.org" target="_blank">OpenStreetMap' +
-                '</a> contributors, Contains <a href="http://www.ordnancesurvey.co.uk"' +
+                '</a> contributors. Contains <a href="http://www.ordnancesurvey.co.uk"' +
                 'target="_blank">Ordnance Survey</a> and ' +
                 '<a href="http://ratings.food.gov.uk/open-data/" target="_blank">' +
                 'Food Hygiene Rating Scheme</a> data &copy Crown copyright and database right'
@@ -329,10 +338,9 @@ for dist in districts:
         var boundary_json = './json/boundary-""" + str(dist['id']) + """.json';
 
         var geojsonBoundaryOptions = {
-            color: "#000",
+            color: "black",
             weight: 2,
             opacity: 1,
-            fillColor: "#000",
             fillOpacity: 0
         }
 
@@ -355,13 +363,48 @@ for dist in districts:
         // defaults for markers on both maps
 
         var geojsonMarkerOptions = {
-            radius: 5,
-            color: "black",
-            fillColor: "cyan",
-            weight: 1,
-            opacity: 1,
-            fillOpacity: 0.5
+            radius: 3,
+            color: "white",
+            weight: 0,
+            opacity: 0.75,
+            fillColor: "black",
+            fillOpacity: 1
         };
+
+
+        // function to style CircleMarkers and TileLayer after zoom event
+
+        function setStyleFromZoom(e) {
+            // max zoom above is 18
+            // below zoom 14, markers should stay the same
+            var currentZoom = e.target.getZoom();
+            if (currentZoom <= 14) {
+                newRadius = 3;
+                newWeight = 0;
+                newFillOpacity = 1;
+                newTileOpacity = 0.75;
+            }
+            else {
+                // do some maths based on values at zoom 14 and scaling
+                var newRadius = ((currentZoom - 14) * 2.25) + 3;
+                var newWeight = ((currentZoom - 14) * 0.5) + 0;
+                var newFillOpacity = ((currentZoom - 14) * -0.125) + 1;
+                var newTileOpacity = ((currentZoom - 14) * 0.0625) + 0.75;
+            }
+            // iterate through all layers and style each
+            e.target.eachLayer(function(layer) {
+                if (layer instanceof L.CircleMarker) {
+                    layer.setStyle({
+                        "radius": newRadius,
+                        "weight": newWeight,
+                        "fillOpacity": newFillOpacity
+                    });
+                }
+                else if (layer instanceof L.TileLayer) {
+                    layer.setOpacity(newTileOpacity)
+                }
+            });
+        }
 
 
         // add distant matches layer to overview map
@@ -398,23 +441,25 @@ for dist in districts:
                     if (feature.properties.mismatch +
                         feature.properties.matched_postcode_error > 0) {
                         // at least one mismatch or postcode error
-                        return {fillColor: "red"};
+                        return {fillColor: "#e31a1c"};
                     } else if (feature.properties.osm_no_postcode > 0) {
                         // at least one OSM to be matched without postcode
-                        return {fillColor: "orange"};
+                        return {fillColor: "#ff7f00"};
                     } else if (feature.properties.osm_with_postcode > 0) {
                         // at least one OSM to be matched
-                        return {fillColor: "yellow"};
+                        return {fillColor: "#984ea3"};
                     } else if (feature.properties.fhrs > 0) {
                         // at least one FHRS to be matched
-                        return {fillColor: "blue"};
+                        return {fillColor: "#377db8"};
                     } else {
                         // all matched
-                        return {fillColor: "lime"};
+                        return {fillColor: "#4daf4a"};
                     }
                 }
             }).addTo(overview_map);
 
+            overview_map.on('zoomend', setStyleFromZoom);
+            setStyleFromZoom({target: overview_map}); // set initial style
             overviewMarkerLayer.bringToFront();
         });
 
@@ -429,15 +474,17 @@ for dist in districts:
                 style: function(feature) {
                     if (feature.properties.osm_postcode != null) {
                         // OSM entity has a postcode
-                        return {fillColor: "yellow"};
+                        return {fillColor: "#984ea3"};
                     }
                     else {
                         // OSM entity has no postcode
-                        return {fillColor: "orange"};
+                        return {fillColor: "#ff7f00"};
                     }
                 }
             }).addTo(suggest_matches_map);
 
+            suggest_matches_map.on('zoomend', setStyleFromZoom);
+            setStyleFromZoom({target: suggest_matches_map}); // set initial style
             matchesMarkerLayer.bringToFront();
         });
 

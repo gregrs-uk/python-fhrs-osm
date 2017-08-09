@@ -200,12 +200,16 @@ class Database(object):
                '    END\n' +
                '    WHEN o."fhrs:id" IS NOT NULL AND f."FHRSID" IS NOT NULL THEN\n' +
                '    CASE\n' +
-               '        WHEN o."addr:postcode" != f."PostCode" OR o."addr:postcode" IS NULL\n' +
+               '        WHEN (o."addr:postcode" != f."PostCode" AND\n' +
+               '                (o."not:addr:postcode" != f."PostCode"\n' +
+               '                OR "not:addr:postcode" IS NULL))\n' +
+               '            OR o."addr:postcode" IS NULL\n' +
                '            THEN \'matched_postcode_error\'\n' +
                '        ELSE \'matched\'\n' +
                '    END\n' +
                'END AS status,\n' +
                'f."PostCode" AS fhrs_postcode, o."addr:postcode" AS osm_postcode,\n' +
+               'o."not:addr:postcode" AS osm_not_postcode,\n' +
                'o."geog" AS osm_geog, f."geog" AS fhrs_geog,\n' +
                'o.id AS osm_id, o.type AS osm_type,\n' +
                'f."FHRSID" AS fhrs_fhrsid, o."fhrs:id" AS osm_fhrsid,\n' +
@@ -743,7 +747,8 @@ class OSMDataset(object):
                  tag_exists_list=['fhrs:id'],
                  field_list=[{'name': 'fhrs:id', 'format': 'VARCHAR(50)'},
                              {'name': 'name', 'format': 'VARCHAR(100)'},
-                             {'name': 'addr:postcode', 'format': 'VARCHAR(50)'}],
+                             {'name': 'addr:postcode', 'format': 'VARCHAR(50)'},
+                             {'name': 'not:addr:postcode', 'format': 'VARCHAR(50)'}],
                  table_name='osm'):
         """Constructor
 
