@@ -107,39 +107,39 @@ for dist in districts:
     <p>The colours in this table act as a key for the maps below</p>
     <table>
         <tr>
-            <td style='color: green'>
+            <td style='color: #4daf4a;'>
                 OSM nodes/ways with valid fhrs:id and matching postcode</td>
             <td>""" + str(dist['stats']['matched']) + """</td>
             <td></td>
         </tr>
         <tr>
-            <td><span style='color: yellow; background-color: gray'>
+            <td><span style='color: #984ea3;'>
                 Relevant OSM nodes/ways with postcode but no valid fhrs:id</span></td>
             <td>""" + str(dist['stats']['OSM_with_postcode']) + """</td>
             <td><a href="gpx/osm-unmatched-with-postcode-""" +
                 str(dist['id']) + """.gpx" download>GPX</a></td>
         </tr>
         <tr>
-            <td style='color: orange;'>
+            <td style='color: #ff7f00;'>
                 Relevant OSM nodes/ways without postcode or fhrs:id</td>
             <td>""" + str(dist['stats']['OSM_no_postcode']) + """</td>
             <td><a href="gpx/osm-unmatched-no-postcode-""" +
                 str(dist['id']) + """.gpx" download>GPX</a></td>
         </tr>
             <tr>
-            <td style='color: red;'>
+            <td style='color: #e31a1c;'>
                 OSM nodes/ways with valid fhrs:id but mismatched/missing postcode</td>
             <td>""" + str(dist['stats']['matched_postcode_error']) + """</td>
             <td></td>
         </tr>
         <tr>
-            <td style='color: red;'>OSM nodes/ways with invalid fhrs:id</td>
+            <td style='color: #e31a1c;'>OSM nodes/ways with invalid fhrs:id</td>
             <td>""" + str(dist['stats']['mismatch']) + """</td>
             <td><a href="gpx/osm-invalid-fhrsid-""" +
                 str(dist['id']) + """.gpx" download>GPX</a></td>
         </tr>
         <tr>
-            <td style='color: blue;'>FHRS establishments with no matching OSM node/way</td>
+            <td style='color: #377db8;'>FHRS establishments with no matching OSM node/way</td>
             <td>""" + str(dist['stats']['FHRS']) + """</td>
             <td><a href="gpx/fhrs-unmatched-""" +
                 str(dist['id']) + """.gpx" download>GPX</a></td>
@@ -323,10 +323,9 @@ for dist in districts:
         var boundary_json = './json/boundary-""" + str(dist['id']) + """.json';
 
         var geojsonBoundaryOptions = {
-            color: "#000",
+            color: "black",
             weight: 2,
             opacity: 1,
-            fillColor: "#000",
             fillOpacity: 0
         }
 
@@ -349,13 +348,48 @@ for dist in districts:
         // defaults for markers on both maps
 
         var geojsonMarkerOptions = {
-            radius: 5,
-            color: "black",
-            fillColor: "cyan",
-            weight: 1,
-            opacity: 1,
-            fillOpacity: 0.5
+            radius: 3,
+            color: "white",
+            weight: 0,
+            opacity: 0.75,
+            fillColor: "black",
+            fillOpacity: 1
         };
+
+
+        // function to style CircleMarkers and TileLayer after zoom event
+
+        function setStyleFromZoom(e) {
+            // max zoom above is 18
+            // below zoom 14, markers should stay the same
+            var currentZoom = e.target.getZoom();
+            if (currentZoom <= 14) {
+                newRadius = 3;
+                newWeight = 0;
+                newFillOpacity = 1;
+                newTileOpacity = 0.75;
+            }
+            else {
+                // do some maths based on values at zoom 14 and scaling
+                var newRadius = ((currentZoom - 14) * 2.25) + 3;
+                var newWeight = ((currentZoom - 14) * 0.5) + 0;
+                var newFillOpacity = ((currentZoom - 14) * -0.125) + 1;
+                var newTileOpacity = ((currentZoom - 14) * 0.0625) + 0.75;
+            }
+            // iterate through all layers and style each
+            e.target.eachLayer(function(layer) {
+                if (layer instanceof L.CircleMarker) {
+                    layer.setStyle({
+                        "radius": newRadius,
+                        "weight": newWeight,
+                        "fillOpacity": newFillOpacity
+                    });
+                }
+                else if (layer instanceof L.TileLayer) {
+                    layer.setOpacity(newTileOpacity)
+                }
+            });
+        }
 
 
         // add distant matches layer to overview map
@@ -392,23 +426,25 @@ for dist in districts:
                     if (feature.properties.mismatch +
                         feature.properties.matched_postcode_error > 0) {
                         // at least one mismatch or postcode error
-                        return {fillColor: "red"};
+                        return {fillColor: "#e31a1c"};
                     } else if (feature.properties.osm_no_postcode > 0) {
                         // at least one OSM to be matched without postcode
-                        return {fillColor: "orange"};
+                        return {fillColor: "#ff7f00"};
                     } else if (feature.properties.osm_with_postcode > 0) {
                         // at least one OSM to be matched
-                        return {fillColor: "yellow"};
+                        return {fillColor: "#984ea3"};
                     } else if (feature.properties.fhrs > 0) {
                         // at least one FHRS to be matched
-                        return {fillColor: "blue"};
+                        return {fillColor: "#377db8"};
                     } else {
                         // all matched
-                        return {fillColor: "lime"};
+                        return {fillColor: "#4daf4a"};
                     }
                 }
             }).addTo(overview_map);
 
+            overview_map.on('zoomend', setStyleFromZoom);
+            setStyleFromZoom({target: overview_map}); // set initial style
             overviewMarkerLayer.bringToFront();
         });
 
@@ -423,15 +459,17 @@ for dist in districts:
                 style: function(feature) {
                     if (feature.properties.osm_postcode != null) {
                         // OSM entity has a postcode
-                        return {fillColor: "yellow"};
+                        return {fillColor: "#984ea3"};
                     }
                     else {
                         // OSM entity has no postcode
-                        return {fillColor: "orange"};
+                        return {fillColor: "#ff7f00"};
                     }
                 }
             }).addTo(suggest_matches_map);
 
+            suggest_matches_map.on('zoomend', setStyleFromZoom);
+            setStyleFromZoom({target: suggest_matches_map}); // set initial style
             matchesMarkerLayer.bringToFront();
         });
 
