@@ -303,7 +303,7 @@ for dist in districts:
         L.tileLayer('https://a.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 18,
             attribution: '&copy; <a href="http://openstreetmap.org" target="_blank">OpenStreetMap' +
-                '</a> contributors, Contains <a href="http://www.ordnancesurvey.co.uk"' +
+                '</a> contributors. Contains <a href="http://www.ordnancesurvey.co.uk"' +
                 'target="_blank">Ordnance Survey</a> and ' +
                 '<a href="http://ratings.food.gov.uk/open-data/" target="_blank">' +
                 'Food Hygiene Rating Scheme</a> data &copy Crown copyright and database right'
@@ -312,7 +312,7 @@ for dist in districts:
         L.tileLayer('https://a.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 18,
             attribution: '&copy; <a href="http://openstreetmap.org" target="_blank">OpenStreetMap' +
-                '</a> contributors, Contains <a href="http://www.ordnancesurvey.co.uk"' +
+                '</a> contributors. Contains <a href="http://www.ordnancesurvey.co.uk"' +
                 'target="_blank">Ordnance Survey</a> and ' +
                 '<a href="http://ratings.food.gov.uk/open-data/" target="_blank">' +
                 'Food Hygiene Rating Scheme</a> data &copy Crown copyright and database right'
