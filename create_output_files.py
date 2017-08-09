@@ -8,65 +8,66 @@ db.connect()
 print "Getting list of districts which contain some data"
 districts = db.get_inhabited_districts()
 
+json_details = [{'filename': 'overview', 'method': db.get_overview_geojson},
+                {'filename': 'suggest-matches', 'method': db.get_suggest_matches_geojson},
+                {'filename': 'distant-matches', 'method': db.get_distant_matches_geojson},
+                {'filename': 'boundary', 'method': db.get_district_boundary_geojson}]
+
+gpx_details = [{'filename': 'fhrs-unmatched',
+                'geog_col': 'fhrs_geog',
+                'name_col':'fhrs_name',
+                'view_name':'compare',
+                'district_id_col':'fhrs_district_id',
+                'status':'FHRS'},
+               {'filename': 'osm-unmatched-with-postcode',
+                'geog_col':'osm_geog',
+                'name_col':'osm_name',
+                'view_name':'compare',
+                'district_id_col':'osm_district_id',
+                'status':'OSM_with_postcode'},
+               {'filename': 'osm-unmatched-no-postcode',
+                'geog_col':'osm_geog',
+                'name_col':'osm_name',
+                'view_name':'compare',
+                'district_id_col':'osm_district_id',
+                'status':'OSM_no_postcode'},
+               {'filename': 'osm-invalid-fhrsid',
+                'geog_col':'osm_geog',
+                'name_col':'osm_name',
+                'view_name':'compare',
+                'district_id_col':'osm_district_id',
+                'status':'mismatch'},
+               {'filename': 'suggested-matches',
+                'geog_col':'osm_geog',
+                'name_col':'osm_name',
+                'view_name':'suggest_matches',
+                'district_id_col':'osm_district_id',
+                'status':None}
+              ]
+
 # loop round inhabited districts to create relevant files for each district
 
 for dist in districts:
     print "Creating GeoJSON, GPX and HTML files for " + dist['name']
 
-    filename = 'html/json/overview-' + str(dist['id']) + '.json'
-    f = open(filename, 'w')
-    f.write(db.get_overview_geojson(district_id=dist['id']))
-    f.close
+    # create GeoJSON files as specified in json_details above
+    for this_json in json_details:
+        path = 'html/json/' + this_json['filename'] + '-' + str(dist['id']) + '.json'
+        f = open(path, 'w')
+        f.write(this_json['method'](district_id=dist['id']))
+        f.close
 
-    filename = 'html/json/suggest-matches-' + str(dist['id']) + '.json'
-    f = open(filename, 'w')
-    f.write(db.get_suggest_matches_geojson(district_id=dist['id']))
-    f.close
-
-    filename = 'html/json/distant-matches-' + str(dist['id']) + '.json'
-    f = open(filename, 'w')
-    f.write(db.get_distant_matches_geojson(district_id=dist['id']))
-    f.close
-
-    filename = 'html/json/boundary-' + str(dist['id']) + '.json'
-    f = open(filename, 'w')
-    f.write(db.get_district_boundary_geojson(district_id=dist['id']))
-    f.close
-
-    filename = 'html/gpx/fhrs-unmatched-' + str(dist['id']) + '.gpx'
-    f = open(filename, 'w')
-    f.write(db.get_gpx(geog_col='fhrs_geog', name_col='fhrs_name',
-                       view_name='compare', district_id_col='fhrs_district_id',
-                       district_id=dist['id'], status='FHRS'))
-    f.close
-
-    filename = 'html/gpx/osm-unmatched-with-postcode-' + str(dist['id']) + '.gpx'
-    f = open(filename, 'w')
-    f.write(db.get_gpx(geog_col='osm_geog', name_col='osm_name',
-                       view_name='compare', district_id_col='osm_district_id',
-                       district_id=dist['id'], status='OSM_with_postcode'))
-    f.close
-
-    filename = 'html/gpx/osm-unmatched-no-postcode-' + str(dist['id']) + '.gpx'
-    f = open(filename, 'w')
-    f.write(db.get_gpx(geog_col='osm_geog', name_col='osm_name',
-                       view_name='compare', district_id_col='osm_district_id',
-                       district_id=dist['id'], status='OSM_no_postcode'))
-    f.close
-
-    filename = 'html/gpx/osm-invalid-fhrsid-' + str(dist['id']) + '.gpx'
-    f = open(filename, 'w')
-    f.write(db.get_gpx(geog_col='osm_geog', name_col='osm_name',
-                       view_name='compare', district_id_col='osm_district_id',
-                       district_id=dist['id'], status='mismatch'))
-    f.close
-
-    filename = 'html/gpx/suggested-matches-' + str(dist['id']) + '.gpx'
-    f = open(filename, 'w')
-    f.write(db.get_gpx(geog_col='osm_geog', name_col='osm_name',
-                       view_name='suggest_matches', district_id_col='osm_district_id',
-                       district_id=dist['id']))
-    f.close
+    # create GPX files as specified in gpx_details above
+    for this_gpx in gpx_details:
+        path = 'html/gpx/' + this_gpx['filename'] + '-' + str(dist['id']) + '.gpx'
+        f = open(path, 'w')
+        f.write(db.get_gpx(geog_col=this_gpx['geog_col'],
+                           name_col=this_gpx['name_col'],
+                           view_name=this_gpx['view_name'],
+                           district_id_col=this_gpx['district_id_col'],
+                           district_id=dist['id'],
+                           status=this_gpx['status']))
+        f.close
 
     # add stats to district's dictionary so that we can access them later
     dist['stats'] = db.get_district_stats(district_id=dist['id'])
