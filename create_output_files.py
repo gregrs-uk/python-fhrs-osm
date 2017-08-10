@@ -540,9 +540,9 @@ html = ("""
 <h2>Districts</h2>
 
 <p style="font-size: 80%">Matched: % of FHRS establishments matched to an OSM node/way using
-the fhrs:id tag. N.B. the OSM addr:postcode must be identical.</p>
-<p style="font-size: 80%">Postcodes: % of OSM nodes/ways with an addr:postcode that matches the
-FHRS one or with an addr:postcode tag and no fhrs:id tag.</p>
+the fhrs:id tag. N.B. the OSM addr:postcode or not:addr:postcode must match the FHRS one.</p>
+<p style="font-size: 80%">Postcodes: % of OSM nodes/ways with an addr:postcode or not:addr:postcode
+that matches the FHRS one or with an addr:postcode tag and no fhrs:id tag.</p>
 
 <table>
 <tr><th>District</th><th>Matched</th><th>Postcodes</th></tr>
