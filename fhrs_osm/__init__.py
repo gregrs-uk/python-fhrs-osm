@@ -298,7 +298,8 @@ class Database(object):
         cur.execute(sql)
         self.connection.commit()
 
-    def get_overview_geojson(self, view_name='compare', district_id=182, cluster_metres=3.5):
+    def get_overview_geojson(self, view_name='compare', fhrs_table='fhrs_establishments',
+                             district_id=182, cluster_metres=3.5):
         """Create GeoJSON-formatted string for a single district using
         comparison view. This can be used to display data on a Leaflet slippy
         map. Establishments within cluster_metres of each other are
@@ -306,6 +307,7 @@ class Database(object):
         has to be converted into degrees of lat/lon.)
 
         view_name (string): name of view from which to gather data
+        fhrs_table (string): name of FHRS establishments database table
         district_id (integer): gid of district to use for filtering
         cluster_metres (numeric): cluster distance in metres (approx.)
         Returns string
@@ -333,6 +335,29 @@ class Database(object):
                "                               ' (<a href=\"" + self.fhrs_est_url_prefix + "',\n" +
                "                               fhrs_fhrsid, '" + self.fhrs_est_url_suffix + "\"" +
                                               "target=\"_blank\">', status, '</a>)')\n" +
+                                    # when FHRS establishment matched in OSM but addr:postcode missing
+               "                    WHEN status = 'matched_postcode_error' AND osm_postcode IS NULL THEN\n" +
+               "                        CONCAT(pref_name,\n" +
+               "                               ' (<a href=\"" + self.osm_url_prefix + "',\n" +
+               "                               TRIM(TRAILING ' ' FROM osm_type),\n" +
+               "                               '/', osm_id, '\" target=\"_blank\">',\n" +
+               "                               status, '</a>)<br />',\n" +
+               "                               '<a href=\"" + self.josm_url_prefix +
+                                              "load_object?objects=',\n" +
+               "                               substring(osm_type from 1 for 1), osm_id,\n" +
+               "                               '&addtags=',\n" +
+               "                               CASE WHEN \"AddressLine1\" IS NOT NULL THEN\n" +
+               "                                   CONCAT('%7Cfixme:addr1=', \"AddressLine1\") END,\n" +
+               "                               CASE WHEN \"AddressLine2\" IS NOT NULL THEN\n" +
+               "                                   CONCAT('%7Cfixme:addr2=', \"AddressLine2\") END,\n" +
+               "                               CASE WHEN \"AddressLine3\" IS NOT NULL THEN\n" +
+               "                                   CONCAT('%7Cfixme:addr3=', \"AddressLine3\") END,\n" +
+               "                               CASE WHEN \"AddressLine4\" IS NOT NULL THEN\n" +
+               "                                   CONCAT('%7Cfixme:addr4=', \"AddressLine4\") END,\n" +
+               "                               CASE WHEN \"PostCode\" IS NOT NULL THEN\n" +
+               "                                   CONCAT('%7Caddr:postcode=', \"PostCode\") END,\n" +
+               "                               '%7Csource:addr=FHRS Open Data',\n" +
+               "                               '\" target=\"_blank\">Add tags in JOSM</a>')\n" +
                                     # when in OSM and possibly FHRS too
                "                    ELSE\n" +
                "                        CONCAT(pref_name,\n" +
@@ -363,14 +388,14 @@ class Database(object):
                "            COALESCE(osm_geog, fhrs_geog) as pref_geog,\n" +
                "            COALESCE(osm_name, fhrs_name) as pref_name\n" +
                "            FROM " + view_name + "\n" +
-               "            WHERE coalesce(osm_district_id, fhrs_district_id) = %s\n" +
+               "            LEFT JOIN " + fhrs_table + " ON fhrs_fhrsid = \"FHRSID\"\n" +
+               "            WHERE coalesce(osm_district_id, fhrs_district_id) = " + str(district_id) + "\n" +
                "        ) AS all_points\n" +
                "        GROUP BY cl_id\n" +
                "    ) AS the_features\n" +
                ") AS the_feature_collection;")
-        values = (district_id,)
 
-        cur.execute(sql, values)
+        cur.execute(sql)
         return cur.fetchone()[0]
 
     def get_suggest_matches_geojson(self, view_name='suggest_matches', district_id=182):
@@ -535,23 +560,39 @@ class Database(object):
 
         return s
 
-    def get_district_postcode_errors(self, comparison_view='compare', district_id=182):
+    def get_district_postcode_errors(self, comparison_view='compare',
+                                     fhrs_table='fhrs_establishments', district_id=182):
         """Get OSM entities which have an fhrs:id that matches an FHRS
         establishment but has no postcode or a mismatching one.
 
+        comparison_view (string): name of comparison database view
+        fhrs_table (string): name of FHRS establishments database table
         district_id (integer): Boundary Line district ID
         Returns dict
         """
 
         dict_cur = self.connection.cursor(cursor_factory=DictCursor)
 
-        sql = ('SELECT osm_name, osm_postcode, fhrs_postcode,\n' +
-               'TRIM(TRAILING \' \' FROM osm_type) as osm_type, osm_id,\n' +
-               'CONCAT(substring(osm_type FROM 1 FOR 1), osm_id) AS osm_ident, osm_fhrsid\n' +
+        sql = ('SELECT osm_name, osm_id, osm_fhrsid, osm_postcode, fhrs_postcode,\n' +
+               'TRIM(TRAILING \' \' FROM osm_type) AS osm_type,\n' +
+               'CONCAT(substring(osm_type FROM 1 FOR 1), osm_id) AS osm_ident,\n' +
+               'CONCAT(\n' +
+               'CASE WHEN "AddressLine1" IS NOT NULL THEN\n' +
+               '    CONCAT(\'%7Cfixme:addr1=\', "AddressLine1") END,\n' +
+               'CASE WHEN "AddressLine2" IS NOT NULL THEN\n' +
+               '    CONCAT(\'%7Cfixme:addr2=\', "AddressLine2") END,\n' +
+               'CASE WHEN "AddressLine3" IS NOT NULL THEN\n' +
+               '    CONCAT(\'%7Cfixme:addr3=\', "AddressLine3") END,\n' +
+               'CASE WHEN "AddressLine4" IS NOT NULL THEN\n' +
+               '    CONCAT(\'%7Cfixme:addr4=\', "AddressLine4") END,\n' +
+               'CASE WHEN "PostCode" IS NOT NULL THEN\n' +
+               '    CONCAT(\'%7Caddr:postcode=\', "PostCode") END,\n' +
+               '\'%7Csource:addr=FHRS Open Data\') AS add_tags_string\n' +
                'FROM compare\n' +
-               'WHERE status = \'matched_postcode_error\' AND osm_district_id = %s')
-        values = (district_id,)
-        dict_cur.execute(sql, values)
+               'LEFT JOIN ' + fhrs_table + ' ON fhrs_fhrsid = "FHRSID"\n' +
+               'WHERE status = \'matched_postcode_error\' AND '
+               'osm_district_id = ' + str(district_id))
+        dict_cur.execute(sql)
 
         result = []
         for row in dict_cur.fetchall():

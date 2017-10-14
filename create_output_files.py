@@ -212,8 +212,14 @@ for dist in districts:
                      str(this_error['osm_name']) + '</a></td>\n' +
                      '<td>' + str(this_error['osm_postcode']) + '</td>\n' +
                      '<td>' + str(this_error['fhrs_postcode'])+ '</td>\n' +
-                     '<td><a href=\"' + db.josm_url_prefix + 'load_object?objects=' +
-                     this_error['osm_ident'] + '\" target="_blank">Edit in JOSM</a></td></tr>\n')
+                     '<td><a href=\"' + db.josm_url_prefix +
+                     'load_object?objects=' + this_error['osm_ident'])
+            if this_error['osm_postcode'] == None:
+                html += ('&addtags=' + this_error['add_tags_string'] +
+                         '\" target="_blank">Add tags in JOSM')
+            else:
+                html += '\" target="_blank">Edit in JOSM'
+            html += '</a></td></tr>\n'
         html += '</table>'
 
     html += ("""
