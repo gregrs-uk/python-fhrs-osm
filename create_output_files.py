@@ -182,6 +182,23 @@ for dist in districts:
     <p style="font-size: 80%">**OSM nodes/ways with an addr:postcode or not:addr:postcode that
     matches the FHRS postcode, or with an addr:postcode but no fhrs:id tag.</p>
 
+    <h3>District progress graphs</h3>
+    <p>Click on a graph below to enlarge it. There are also
+    <a href="../fhrs-stats/summary-graphs.html">graphs showing progress across the whole of
+    Great Britain</a></p>
+    <a href="../fhrs-stats/district-graphs/fhrs-no-""" + str(dist['id']) + """.png">
+    <img src="../fhrs-stats/district-graphs/fhrs-no-""" + str(dist['id']) +""".png" width=450>
+    </a>
+    <a href="../fhrs-stats/district-graphs/fhrs-pc-""" + str(dist['id']) + """.png">
+    <img src="../fhrs-stats/district-graphs/fhrs-pc-""" + str(dist['id']) + """.png" width=450>
+    </a><br>
+    <a href="../fhrs-stats/district-graphs/osm-no-""" + str(dist['id']) + """.png">
+    <img src="../fhrs-stats/district-graphs/osm-no-""" + str(dist['id']) + """.png" width=450>
+    </a>
+    <a href="../fhrs-stats/district-graphs/osm-pc-""" + str(dist['id']) + """.png">
+    <img src="../fhrs-stats/district-graphs/osm-pc-""" + str(dist['id']) + """.png" width=450>
+    </a>
+
     <h3>Overview</h3>
     <p>Dotted lines in the map below show the difference between the OSM and FHRS locations for
     establishments that have been matched when those locations are more than """ +
@@ -542,6 +559,10 @@ html = ("""
 <body>
 
 <h1>FHRS/OSM comparison</h1>
+
+<p><a href="../fhrs-stats/summary-graphs.html"
+style="padding: 0.5em; border: 1px solid black; background: #ffffd0;">
+Graphs for the whole of Great Britain</a></p>
 
 <h2>Districts</h2>
 
