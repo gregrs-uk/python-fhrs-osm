@@ -98,16 +98,6 @@ for dist in districts:
             padding: 0.25em;
         }
     </style>
-
-    <script>
-      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function
-      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElemen
-      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefor
-      })(window,document,'script','https://www.google-analytics.com/analytics.j
-
-      ga('create', 'UA-15864457-4', 'auto');
-      ga('send', 'pageview');
-    </script>
 </head>
 <body>
 
@@ -544,16 +534,6 @@ html = ("""
             padding: 0.25em;
         }
     </style>
-
-    <script>
-      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function
-      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElemen
-      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefor
-      })(window,document,'script','https://www.google-analytics.com/analytics.j
-
-      ga('create', 'UA-15864457-4', 'auto');
-      ga('send', 'pageview');
-    </script>
 </head>
 
 <body>
