@@ -7,6 +7,7 @@ community_centre,community_hall,fast_food,fuel,hospital,kindergarten,\
 nightclub,nursing_home,pharmacy,place_of_worship,post_office,pub,restaurant,\
 school,social_club,social_facility,theatre,village_hall \
 club=scouts,social,sport \
+craft=brewery,caterer,confectionery,distillery,winery \
 shop=alcohol,bakery,butcher,cheese,chemist,confectionery,convenience,deli,\
 delicatessen,discount,farm,fishmonger,greengrocer,grocery,health_food,\
 newsagent,supermarket,variety_store \
