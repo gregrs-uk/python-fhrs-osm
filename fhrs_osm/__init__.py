@@ -734,6 +734,35 @@ class Database(object):
         output += '</gpx>'
         return output
 
+    def get_csv(self, view_name='compare', district_id=182, status='mismatch'):
+        """Get CSV file for district
+
+        view_name (string): name of view which contains the data
+        district_id (integer): Boundary Line district ID
+        status (string): status of waypoints to be selected e.g. 'mismatch'
+        Returns string
+        """
+
+        output = 'type,id,lat,lon,name,fhrs:id\n'
+
+        dict_cur = self.connection.cursor(cursor_factory=DictCursor)
+        sql = ("SELECT substring(osm_type from 1 for 1) AS type_char, osm_id,\n" +
+               "ST_Y(osm_geog::geometry) AS lat, ST_X(osm_geog::geometry) AS lon,\n" +
+               "osm_name, osm_fhrsid\n" +
+               "FROM " + view_name + "\n" +
+               "WHERE osm_district_id = " + str(district_id) + " AND status = '" + status + "';")
+        dict_cur.execute(sql)
+
+        for row in dict_cur.fetchall():
+            # set columns containing None to blank instead
+            for this_col in ['osm_name', 'osm_fhrsid']:
+                if not row[this_col]:
+                    row[this_col] = ''
+            output += (row['type_char'] + ',' + str(row['osm_id']) + ',' + str(row['lat']) + ',' +
+                       str(row['lon']) + ',' + row['osm_name'] + ',' + row['osm_fhrsid'] + '\n')
+        return output
+
+
 
 class OSMDataset(object):
     """A class which represents the OSM data we are using."""

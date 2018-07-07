@@ -48,7 +48,7 @@ gpx_details = [{'filename': 'fhrs-unmatched',
 # loop round inhabited districts to create relevant files for each district
 
 for dist in districts:
-    print "Creating GeoJSON, GPX and HTML files for " + dist['name']
+    print "Creating GeoJSON, GPX, CSV and HTML files for " + dist['name']
 
     # create GeoJSON files as specified in json_details above
     for this_json in json_details:
@@ -68,6 +68,12 @@ for dist in districts:
                            district_id=dist['id'],
                            status=this_gpx['status']))
         f.close
+
+    # create CSV file of mismatches for 'Survey Me!' tool
+    path = 'html/csv/osm-invalid-fhrsid-' + str(dist['id']) + '.csv'
+    f = open(path, 'w')
+    f.write(db.get_csv(district_id=dist['id'], status='mismatch'))
+    f.close
 
     # add stats to district's dictionary so that we can access them later
     dist['stats'] = db.get_district_stats(district_id=dist['id'])
