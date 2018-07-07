@@ -249,9 +249,10 @@ class Database(object):
                'o.district_id AS osm_district_id, f.district_id AS fhrs_district_id\n' +
                'FROM ' + osm_table + ' AS o\n' +
                'INNER JOIN ' + fhrs_table + ' AS f\n' +
-               # escape % with another %
                'ON o.district_id = f.district_id\n' +
+               # escape % with another %
                'AND (f."BusinessName" LIKE \'%%\' || o.name || \'%%\'\n' +
+               '     OR o.name LIKE \'%%\' || f."BusinessName" || \'%%\'\n' +
                '     OR levenshtein_less_equal(o.name, f."BusinessName", %s) < %s)\n' +
                'AND ST_DWithin(o.geog, f.geog, %s, false)\n' + # false = don't use spheroid
                'WHERE o."fhrs:id" IS NULL\n' +
@@ -765,6 +766,11 @@ class OSMDataset(object):
                                        {'t': 'club', 'v': 'scouts'},
                                        {'t': 'club', 'v': 'social'},
                                        {'t': 'club', 'v': 'sport'},
+                                       {'t': 'craft', 'v': 'brewery'},
+                                       {'t': 'craft', 'v': 'caterer'},
+                                       {'t': 'craft', 'v': 'confectionery'},
+                                       {'t': 'craft', 'v': 'distillery'},
+                                       {'t': 'craft', 'v': 'winery'},
                                        {'t': 'shop', 'v': 'alcohol'},
                                        {'t': 'shop', 'v': 'bakery'},
                                        {'t': 'shop', 'v': 'butcher'},

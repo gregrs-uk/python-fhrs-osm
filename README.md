@@ -24,7 +24,7 @@ Please follow the link for [FHRS comparison maps and statistics for Great Britai
 place the four `district_borough_unitary_region.*` files in the `shapefiles` directory. (These are used to compute which district FHRS establishments and OSM entities are in so that relavitely small GeoJSON files can be created, one for each district)
 * Run `setup.sh`, which should:
     * Install overpy module
-    * Install psycopg2 module
+    * Install psycopg2-binary module
     * Install shapely module
     * (Re)create PostgreSQL database (called `fhrs` by default, see `config.py`)
     * Enable PostGIS and fuzzystrmatch extensions
