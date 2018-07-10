@@ -29,6 +29,8 @@ mkdir ./html/json || exit 1
 mkdir ./html/gpx || exit 1
 mkdir ./html/csv || exit 1
 python create_output_files.py || exit 1
+tar -czf ./html/csv/osm-invalid-fhrsid.tar.gz \
+	./html/csv/osm-invalid-fhrsid-*.csv || exit 1
 
 echo "Moving output files to public directory"
 cd ~/public_html || exit 1
