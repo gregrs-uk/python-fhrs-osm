@@ -6,6 +6,7 @@ import urllib2
 import xml.etree.ElementTree
 from xml.sax.saxutils import escape
 from shapely.geometry import Polygon
+from time import sleep
 
 
 class Database(object):
@@ -1054,8 +1055,15 @@ class FHRSDataset(object):
         self.est_table_name = est_table_name
         self.auth_table_name = auth_table_name
 
-    def api_download(self, endpoint):
-        """Use the FHRS API to download XML data
+    def api_download(self, endpoint, max_attempts = 7, first_sleep_time = 3):
+        """
+        Use the FHRS API to download XML data. If first attempt fails, wait
+        and try again. The sleep time progressively increases using the
+        formula first_sleep_time ** attempt.
+
+        endpoint (string): endpoint part of URL
+        max_attempts (integer): max number of attempts
+        first_sleep_time (integer): sleep time (secs) after 1st bad attempt
 
         Returns XML string
         """
@@ -1063,18 +1071,28 @@ class FHRSDataset(object):
         request = urllib2.Request(url)
         for header, content in self.api_headers:
             request.add_header(header, content)
-        try:
-            response = urllib2.urlopen(request)
-        except urllib2.HTTPError:
-            print "HTTP Error when trying to get data from FHRS API"
-            print "URL: " + url
-            print "Headers: " + repr(request.header_items())
-            raise
-        except urllib2.URLError:
-            print "URL Error when trying to get data from FHRS API"
-            print "URL: " + url
-            print "Headers: " + repr(request.header_items())
-            raise
+
+        attempt = 0
+        while attempt < max_attempts:
+            attempt += 1
+            try:
+                response = urllib2.urlopen(request)
+                break # exit while loop if successful
+            except:
+                print "Error when trying to get data from FHRS API"
+                print "URL: " + url
+                print "Headers: " + repr(request.header_items())
+                if attempt == max_attempts: # final attempt
+                    print "Exception from final attempt:"
+                    raise
+                else:
+                    # wait before trying again
+                    sleep_time = first_sleep_time ** attempt
+                    print "Sleeping {} secs before next attempt".format(
+                        sleep_time
+                    )
+                    sleep(sleep_time)
+
         return response.read()
 
     def download_authorities(self):
