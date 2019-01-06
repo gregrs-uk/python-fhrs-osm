@@ -121,7 +121,7 @@ for dist in districts:
             <td></td>
         </tr>
         <tr>
-            <td><span style='color: #984ea3;'>
+            <td><span style='color: #c03ca5;'>
                 Relevant OSM nodes/ways with postcode but no valid fhrs:id</span></td>
             <td>""" + str(dist['stats']['OSM_with_postcode']) + """</td>
             <td><a href="gpx/osm-unmatched-with-postcode-""" +
@@ -147,7 +147,7 @@ for dist in districts:
                 str(dist['id']) + """.gpx" download>GPX</a></td>
         </tr>
         <tr>
-            <td style='color: #377db8;'>FHRS establishments with no matching OSM node/way</td>
+            <td style='color: #007fff;'>FHRS establishments with no matching OSM node/way</td>
             <td>""" + str(dist['stats']['FHRS']) + """</td>
             <td><a href="gpx/fhrs-unmatched-""" +
                 str(dist['id']) + """.gpx" download>GPX</a></td>
@@ -466,10 +466,10 @@ for dist in districts:
                         return {fillColor: "#ff7f00"};
                     } else if (feature.properties.osm_with_postcode > 0) {
                         // at least one OSM to be matched
-                        return {fillColor: "#984ea3"};
+                        return {fillColor: "#c03ca5"};
                     } else if (feature.properties.fhrs > 0) {
                         // at least one FHRS to be matched
-                        return {fillColor: "#377db8"};
+                        return {fillColor: "#007fff"};
                     } else {
                         // all matched
                         return {fillColor: "#4daf4a"};
@@ -493,7 +493,7 @@ for dist in districts:
                 style: function(feature) {
                     if (feature.properties.osm_postcode != null) {
                         // OSM entity has a postcode
-                        return {fillColor: "#984ea3"};
+                        return {fillColor: "#c03ca5"};
                     }
                     else {
                         // OSM entity has no postcode
