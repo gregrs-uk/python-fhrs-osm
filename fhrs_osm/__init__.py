@@ -788,6 +788,7 @@ class OSMDataset(object):
                                        {'t': 'shop', 'v': 'grocery'},
                                        {'t': 'shop', 'v': 'health_food'},
                                        {'t': 'shop', 'v': 'newsagent'},
+				       {'t': 'shop', 'v': 'pastry'},
                                        {'t': 'shop', 'v': 'supermarket'},
                                        {'t': 'shop', 'v': 'variety_store'},
                                        {'t': 'tourism', 'v': 'hotel'},
