@@ -3,14 +3,14 @@
 source config.py
 
 filter_list="amenity=bar,cafe,care_home,childcare,church_hall,cinema,college,\
-community_centre,community_hall,fast_food,fuel,hospital,kindergarten,\
-nightclub,nursing_home,pharmacy,place_of_worship,post_office,pub,restaurant,\
-school,social_club,social_facility,theatre,village_hall \
+community_centre,community_hall,fast_food,fuel,hospital,ice_cream,\
+kindergarten,nightclub,nursing_home,pharmacy,place_of_worship,post_office,pub,\
+restaurant,school,social_club,social_facility,theatre,village_hall \
 club=scouts,social,sport \
 craft=brewery,caterer,confectionery,distillery,winery \
 shop=alcohol,bakery,butcher,cheese,chemist,confectionery,convenience,deli,\
 delicatessen,discount,farm,fishmonger,greengrocer,grocery,health_food,\
-newsagent,pastry,supermarket,variety_store \
+newsagent,pastry,seafood,supermarket,variety_store \
 tourism=hotel,guest_house"
 
 if [ ! -d data ]
