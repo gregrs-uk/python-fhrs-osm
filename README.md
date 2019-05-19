@@ -3,7 +3,7 @@ Python tools for downloading and comparing Food Hygiene Rating Scheme (FHRS) and
 
 ## Maps and statistics for Great Britain
 
-Please follow the link for [FHRS comparison maps and statistics for Great Britain](http://gregrs.dev.openstreetmap.org/fhrs/), kindly hosted on the OpenStreetMap dev server and updated weekly.
+Please follow the link for [FHRS comparison maps and statistics for Great Britain](http://gregrs.dev.openstreetmap.org/fhrs/), kindly hosted on the OpenStreetMap dev server and updated daily.
 
 ## Features
 * Download OpenStreetMap and FHRS data and parse it into a PostgreSQL/PostGIS database
@@ -11,8 +11,12 @@ Please follow the link for [FHRS comparison maps and statistics for Great Britai
 * Export HTML pages with statistics and Leaflet slippy maps, allowing users to visualise OSM/FHRS data as well as to review possible matches between FHRS and OSM data and import useful tags into JOSM
 
 ## Requirements
-* Tested using Python 2.7 on Ubuntu and Mac OS X
-* Tested using PostgreSQL 9.3
+* Requires PostGIS 2.3
+* Tested using:
+	- Ubuntu 16.04
+	- Python 2.7
+	- PostgreSQL 9.5
+	- PostGIS 2.3 (installed using [PGDG package](https://wiki.postgresql.org/wiki/Apt))
 
 ## Installation
 1. Download the Boundary Line shapefiles from
@@ -20,7 +24,7 @@ Please follow the link for [FHRS comparison maps and statistics for Great Britai
 place the four `district_borough_unitary_region.*` files in the `shapefiles` directory. (These are used to compute which district FHRS establishments and OSM entities are in so that relavitely small GeoJSON files can be created, one for each district)
 * Run `setup.sh`, which should:
     * Install overpy module
-    * Install psycopg2 module
+    * Install psycopg2-binary module
     * Install shapely module
     * (Re)create PostgreSQL database (called `fhrs` by default, see `config.py`)
     * Enable PostGIS and fuzzystrmatch extensions
@@ -41,26 +45,28 @@ place the four `district_borough_unitary_region.*` files in the `shapefiles` dir
 
 ## Overview map
 
-![Example overview map](examples/overview.jpg)
+![Example overview map](examples/overview.png)
 
-Multiple establishments in the same location are aggregated because the FHRS position data is reverse geocoded from postcodes
-* Locations with at least one OSM entity with an `fhrs:id` value not present in the FHRS data table (e.g. establishments that have closed) or with a missing/mismatched postcode are **red**
+Multiple establishments within approx. 3.5 metres of each other are aggregated. (This is especially necessary because the FHRS position data is reverse geocoded from postcodes.)
+
+* Locations with at least one OSM entity with an `fhrs:id` value not present in the FHRS data (e.g. establishments that have closed) or with a missing/mismatched postcode are **red**
 * Locations with at least one OSM entity with no `fhrs:id` tag and no postcode are **orange**
-* Locations with at least one OSM entity with no `fhrs:id` tag are **yellow**
-* Locations containing at least one establishment from the FHRS database with no matching OSM entity (matched using `fhrs:id` tag) are **blue**
-* Locations containing only OSM entities with a valid `fhrs:id` value and postcode are **green**
+* Locations with at least one OSM entity with no `fhrs:id` tag but with a postcode are **purple**
+* Locations with at least one establishment from the FHRS database with no matching OSM entity (matched using `fhrs:id` tag) are **blue**
+* Locations with only OSM entities with a valid `fhrs:id` value and matching `addr:postcode` or `not:addr:postcode` are **green**
 
-Clicking on a point shows a popup with the name of any OSM entities or FHRS establishments, which link to the FHRS web page for that establishment
+Clicking on a marker shows a popup with the name of any OSM entities or FHRS establishments and a link to the relevant OSM node/way or FHRS establishment web page. If the marker represents an OSM entity, the popup also includes a link which allows the user to edit the entity in JOSM
 
 ## Suggested matches map
 
-![Example suggested matches map](examples/match.jpg)
+![Example suggested matches map](examples/match.png)
 
 By default, this map shows OSM entities with possible matches in the FHRS database, based on the following criteria:
+
 * < 250m distance
 * Either FHRS name contains OSM name within it or names are closely matched using Levenshtein distance algorithm
 
-Clicking on a point shows links to the OSM node/way web page and the FHRS establishment web page, as well as allowing the user to copy relevant tag/value pairs into JOSM
+Clicking on a marker shows a popup with links to the OSM node/way web page and the FHRS establishment web page, as well as a link which allows the user to copy relevant tag/value pairs into JOSM
 
 ## Copyright
 

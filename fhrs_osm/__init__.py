@@ -4,7 +4,9 @@ from psycopg2.extras import DictCursor
 from collections import OrderedDict
 import urllib2
 import xml.etree.ElementTree
+from xml.sax.saxutils import escape
 from shapely.geometry import Polygon
+from time import sleep
 
 
 class Database(object):
@@ -79,6 +81,9 @@ class Database(object):
                 print sql, values
                 return False
 
+        # create index to speed up comparison with OSM district_ids
+        cur.execute('CREATE INDEX ON ' + fhrs_table + ' (district_id);')
+
         self.connection.commit()
         return True
 
@@ -128,6 +133,9 @@ class Database(object):
                 print sql, values
                 return False
 
+        # create index to speed up comparison with FHRS district_ids
+        cur.execute('CREATE INDEX ON ' + osm_table + ' (district_id);')
+
         self.connection.commit()
         return True
 
@@ -158,7 +166,7 @@ class Database(object):
                ') AS f\n' +
                'LEFT JOIN ' + districts_table + ' as d ON f.district_id = d.gid\n' +
                'WHERE num >= %s\n' +
-               'ORDER BY name')
+               'ORDER BY new_name')
         values = (threshold,)
         cur.execute(sql, values)
 
@@ -193,18 +201,22 @@ class Database(object):
                '    END\n' +
                '    WHEN o."fhrs:id" IS NOT NULL AND f."FHRSID" IS NOT NULL THEN\n' +
                '    CASE\n' +
-               '        WHEN o."addr:postcode" != f."PostCode" OR o."addr:postcode" IS NULL\n' +
+               '        WHEN (o."addr:postcode" != f."PostCode" AND\n' +
+               '                (o."not:addr:postcode" != f."PostCode"\n' +
+               '                OR "not:addr:postcode" IS NULL))\n' +
+               '            OR o."addr:postcode" IS NULL\n' +
                '            THEN \'matched_postcode_error\'\n' +
                '        ELSE \'matched\'\n' +
                '    END\n' +
                'END AS status,\n' +
                'f."PostCode" AS fhrs_postcode, o."addr:postcode" AS osm_postcode,\n' +
+               'o."not:addr:postcode" AS osm_not_postcode,\n' +
                'o."geog" AS osm_geog, f."geog" AS fhrs_geog,\n' +
                'o.id AS osm_id, o.type AS osm_type,\n' +
                'f."FHRSID" AS fhrs_fhrsid, o."fhrs:id" AS osm_fhrsid,\n' +
                'o.district_id AS osm_district_id, f.district_id AS fhrs_district_id\n' +
                'FROM ' + fhrs_table + ' AS f\n' +
-               'FULL OUTER JOIN ' + osm_table + ' AS o ON f."FHRSID" = o."fhrs:id"\n' +
+               'FULL OUTER JOIN ' + osm_table + ' AS o ON f."FHRSID"::text = o."fhrs:id"\n' +
                'WHERE COALESCE(o.geog, f.geog) IS NOT NULL')
         cur.execute(sql)
         self.connection.commit()
@@ -234,30 +246,72 @@ class Database(object):
                'f."AddressLine1", f."AddressLine2", \n' +
                'f."AddressLine3", f."AddressLine4", \n' +
                'f."PostCode", o."addr:postcode", \n' +
-               'ST_Distance(o.geog, f.geog) AS distance_metres,\n' +
                'o.geog AS osm_geog, f.geog AS fhrs_geog,\n' +
                'o.district_id AS osm_district_id, f.district_id AS fhrs_district_id\n' +
                'FROM ' + osm_table + ' AS o\n' +
                'INNER JOIN ' + fhrs_table + ' AS f\n' +
-               # escape % with another %
                'ON o.district_id = f.district_id\n' +
+               # escape % with another %
                'AND (f."BusinessName" LIKE \'%%\' || o.name || \'%%\'\n' +
+               '     OR o.name LIKE \'%%\' || f."BusinessName" || \'%%\'\n' +
                '     OR levenshtein_less_equal(o.name, f."BusinessName", %s) < %s)\n' +
-               'AND ST_Distance(o.geog, f.geog) < %s\n' +
+               'AND ST_DWithin(o.geog, f.geog, %s, false)\n' + # false = don't use spheroid
                'WHERE o."fhrs:id" IS NULL\n' +
+               # check that FHRS ID not already used by another OSM entity
+               # only check this district to speed up query
+               'AND NOT EXISTS\n' +
+               '    (SELECT "fhrs:id" FROM osm\n' +
+               '     WHERE district_id = o.district_id\n' +
+               '     AND "fhrs:id" = CAST(f."FHRSID" AS TEXT))\n' +
                'ORDER BY o.name')
         values = (levenshtein_distance, levenshtein_distance, distance_metres)
 
         cur.execute(sql, values)
         self.connection.commit()
 
-    def get_overview_geojson(self, view_name='compare', district_id=182):
+    def create_distant_matches_view(self, view_name='distant_matches',
+                                    osm_table='osm', fhrs_table='fhrs_establishments',
+                                    distance_metres=500):
+        """(Re)create database view to compare the OSM and FHRS locations for
+        matched establishments. Filters out matches using distance_metres to
+        show only distant matches. Drop any dependent views first.
+
+        view_name (string): name for the view we're creating e.g. 'match_lines'
+        osm_table (string): name of OSM database table
+        fhrs_table (string): name of FHRS establishments database table
+        distance_metres (numeric): minimum distance between OSM/FHRS locations
+        """
+
+        cur = self.connection.cursor()
+        cur.execute('drop view if exists ' + view_name + ' cascade')
+        self.connection.commit()
+
+        sql = ('CREATE VIEW ' + view_name + ' AS\n' +
+               'SELECT o.id AS osm_id, TRIM(TRAILING \' \' FROM o.type) AS osm_type,\n' +
+               'f."FHRSID" AS fhrs_id, o.name AS osm_name, f."BusinessName" AS fhrs_name,\n' +
+               'o.district_id, ST_MakeLine(o.geog::geometry, f.geog::geometry) AS geom,\n' +
+               'ST_Distance(o.geog, f.geog) AS distance\n' +
+               'FROM ' + osm_table + ' o\n' +
+               'FULL OUTER JOIN ' + fhrs_table + ' f ON o."fhrs:id"::text = f."FHRSID"::text\n' +
+               'WHERE o.geog IS NOT NULL AND f.geog IS NOT NULL\n' +
+               # first false = don't use spheroid for a faster calculation
+               'AND ST_DWithin(o.geog, f.geog, ' + str(distance_metres) + ', FALSE) IS FALSE;')
+
+        cur.execute(sql)
+        self.connection.commit()
+
+    def get_overview_geojson(self, view_name='compare', fhrs_table='fhrs_establishments',
+                             district_id=182, cluster_metres=3.5):
         """Create GeoJSON-formatted string for a single district using
         comparison view. This can be used to display data on a Leaflet slippy
-        map. Establishments with the same lat/lon are aggregated into a list.
+        map. Establishments within cluster_metres of each other are
+        aggregated into a list. (This distance variable is approximate as it
+        has to be converted into degrees of lat/lon.)
 
         view_name (string): name of view from which to gather data
+        fhrs_table (string): name of FHRS establishments database table
         district_id (integer): gid of district to use for filtering
+        cluster_metres (numeric): cluster distance in metres (approx.)
         Returns string
         """
 
@@ -265,44 +319,85 @@ class Database(object):
 
         # need to cast JSON as text to prevent result being interpreted into
         # Python structures (psycopg2 issue #172)
-        sql = ("SELECT CAST(row_to_json(fc) AS TEXT)\n" +
+        sql = ("SELECT CAST(row_to_json(the_feature_collection) AS TEXT)\n" +
                "FROM (\n" +
-               "   SELECT 'FeatureCollection' AS type, array_to_json(array_agg(f)) AS features\n" +
-               "   FROM (\n" +
-               "       SELECT 'Feature' AS type,\n" +
-               "       ST_AsGeoJSON(COALESCE(osm_geog, fhrs_geog))::json AS geometry,\n" +
-               "       row_to_json((\n" +
-               "           SELECT l FROM (\n" +
-               "               SELECT string_agg(\n" +
-               "                   CASE WHEN fhrs_fhrsid IS NOT NULL THEN\n" +
-               "                       CONCAT('<a href=\"" + self.fhrs_est_url_prefix + "', "
-                                             "fhrs_fhrsid, '" + self.fhrs_est_url_suffix + "\">',\n" +
-               "                              COALESCE(osm_name, fhrs_name),\n" +
-               "                              '</a> (', status, ')')\n" +
-               "                   WHEN fhrs_fhrsid IS NULL THEN\n" +
-               "                       CONCAT(COALESCE(osm_name, fhrs_name),\n" +
-               "                              ' (', status, ')')\n" +
-               "                   END, '<br />'\n" +
-               "               ) AS list,\n" +
-               "               COUNT(CASE WHEN status = 'matched' THEN 1 END) AS matched,\n" +
-               "               COUNT(CASE WHEN status = 'matched_postcode_error' THEN 1 END)\n" +
-               "                   AS matched_postcode_error,\n" +
-               "               COUNT(CASE WHEN status = 'mismatch' THEN 1 END) AS mismatch,\n" +
-               "               COUNT(CASE WHEN status = 'FHRS' THEN 1 END) AS fhrs,\n" +
-               "               COUNT(CASE WHEN status = 'OSM_with_postcode' THEN 1 END)\n" +
-               "                   AS osm_with_postcode,\n" +
-               "               COUNT(CASE WHEN status = 'OSM_no_postcode' THEN 1 END)\n" +
-               "                   AS osm_no_postcode\n" +
-               "           ) AS l\n" +
-               "       )) AS properties\n" +
-               "       FROM " + view_name + " AS lg\n" +
-               "       WHERE COALESCE(osm_district_id, fhrs_district_id) = %s\n" +
-               "       GROUP BY COALESCE(osm_geog, fhrs_geog)\n" +
-               "   ) AS f\n" +
-               ") AS fc;")
-        values = (district_id,)
+               "    SELECT 'FeatureCollection' AS type,\n" +
+               "    array_to_json(array_agg(the_features)) AS features\n" +
+               "    FROM (\n" +
+               "        SELECT 'Feature' AS type,\n" +
+               "        ST_AsGeoJSON(\n" +
+               "            ST_Centroid(ST_Collect(pref_geog::geometry))\n" +
+               "        )::json AS geometry,\n" +
+               "        row_to_json((\n" +
+               "            SELECT properties_row FROM (\n" +
+               "                SELECT string_agg(\n" +
+                                    # when FHRS establishment not in OSM
+               "                    CASE WHEN fhrs_fhrsid IS NOT NULL AND osm_fhrsid IS NULL THEN\n" +
+               "                        CONCAT(pref_name,\n" +
+               "                               ' (<a href=\"" + self.fhrs_est_url_prefix + "',\n" +
+               "                               fhrs_fhrsid, '" + self.fhrs_est_url_suffix + "\"" +
+                                              "target=\"_blank\">', status, '</a>)')\n" +
+                                    # when FHRS establishment matched in OSM but addr:postcode missing
+               "                    WHEN status = 'matched_postcode_error' AND osm_postcode IS NULL THEN\n" +
+               "                        CONCAT(pref_name,\n" +
+               "                               ' (<a href=\"" + self.osm_url_prefix + "',\n" +
+               "                               TRIM(TRAILING ' ' FROM osm_type),\n" +
+               "                               '/', osm_id, '\" target=\"_blank\">',\n" +
+               "                               status, '</a>)<br />',\n" +
+               "                               '<a href=\"" + self.josm_url_prefix +
+                                              "load_object?objects=',\n" +
+               "                               substring(osm_type from 1 for 1), osm_id,\n" +
+               "                               '&addtags=',\n" +
+               "                               CASE WHEN \"AddressLine1\" IS NOT NULL THEN\n" +
+               "                                   CONCAT('%7Cfixme:addr1=', \"AddressLine1\") END,\n" +
+               "                               CASE WHEN \"AddressLine2\" IS NOT NULL THEN\n" +
+               "                                   CONCAT('%7Cfixme:addr2=', \"AddressLine2\") END,\n" +
+               "                               CASE WHEN \"AddressLine3\" IS NOT NULL THEN\n" +
+               "                                   CONCAT('%7Cfixme:addr3=', \"AddressLine3\") END,\n" +
+               "                               CASE WHEN \"AddressLine4\" IS NOT NULL THEN\n" +
+               "                                   CONCAT('%7Cfixme:addr4=', \"AddressLine4\") END,\n" +
+               "                               CASE WHEN \"PostCode\" IS NOT NULL THEN\n" +
+               "                                   CONCAT('%7Caddr:postcode=', \"PostCode\") END,\n" +
+               "                               '%7Csource:addr=FHRS Open Data',\n" +
+               "                               '\" target=\"_blank\">Add tags in JOSM</a>')\n" +
+                                    # when in OSM and possibly FHRS too
+               "                    ELSE\n" +
+               "                        CONCAT(pref_name,\n" +
+               "                               ' (<a href=\"" + self.osm_url_prefix + "',\n" +
+               "                               TRIM(TRAILING ' ' FROM osm_type),\n" +
+               "                               '/', osm_id, '\" target=\"_blank\">',\n" +
+               "                               status, '</a>)<br />',\n" +
+               "                               '<a href=\"" + self.josm_url_prefix +
+                                              "load_object?objects=',\n" +
+               "                               substring(osm_type from 1 for 1), osm_id,\n" +
+               "                               '\" target=\"_blank\">Edit in JOSM</a>')\n" +
+               "                    END, '<br />'\n" +
+               "                ) AS list,\n" +
+               "                COUNT(CASE WHEN status = 'matched' THEN 1 END) AS matched,\n" +
+               "                COUNT(CASE WHEN status = 'matched_postcode_error' THEN 1 END)\n" +
+               "                    AS matched_postcode_error,\n" +
+               "                COUNT(CASE WHEN status = 'mismatch' THEN 1 END) AS mismatch,\n" +
+               "                COUNT(CASE WHEN status = 'FHRS' THEN 1 END) AS fhrs,\n" +
+               "                COUNT(CASE WHEN status = 'OSM_with_postcode' THEN 1 END)\n" +
+               "                    AS osm_with_postcode,\n" +
+               "                COUNT(CASE WHEN status = 'OSM_no_postcode' THEN 1 END)\n" +
+               "                    AS osm_no_postcode\n" +
+               "            ) AS properties_row\n" +
+               "        )) AS properties\n" +
+               "        FROM (\n" +
+               "            SELECT *, ST_ClusterDBSCAN(COALESCE(osm_geog, fhrs_geog)::geometry,\n" +
+               "               " + str(cluster_metres) + "/111111, 1) OVER () AS cl_id,\n" +
+               "            COALESCE(osm_geog, fhrs_geog) as pref_geog,\n" +
+               "            COALESCE(osm_name, fhrs_name) as pref_name\n" +
+               "            FROM " + view_name + "\n" +
+               "            LEFT JOIN " + fhrs_table + " ON fhrs_fhrsid = \"FHRSID\"\n" +
+               "            WHERE coalesce(osm_district_id, fhrs_district_id) = " + str(district_id) + "\n" +
+               "        ) AS all_points\n" +
+               "        GROUP BY cl_id\n" +
+               "    ) AS the_features\n" +
+               ") AS the_feature_collection;")
 
-        cur.execute(sql, values)
+        cur.execute(sql)
         return cur.fetchone()[0]
 
     def get_suggest_matches_geojson(self, view_name='suggest_matches', district_id=182):
@@ -329,9 +424,10 @@ class Database(object):
                "           SELECT l FROM (\n" +
                "               SELECT CONCAT('OSM: <a href=\"" + self.osm_url_prefix + "',\n" +
                "                   TRIM(TRAILING ' ' FROM osm_type),\n" +
-               "                   '/', osm_id, '\">', osm_name, '</a>'\n" +
+               "                   '/', osm_id, '\" target=\"_blank\">', osm_name, '</a>'\n" +
                "                   '<br />FHRS: <a href=\"" + self.fhrs_est_url_prefix + "',\n" +
-               "                   \"FHRSID\", '" + self.fhrs_est_url_suffix + "\">', fhrs_name,\n" +
+               "                   \"FHRSID\", '" + self.fhrs_est_url_suffix + "\"\n" +
+               "                   target=\"_blank\">', fhrs_name,\n" +
                "                   '</a><br /><a href=\"" + self.josm_url_prefix + "',"
                "                   'load_object?objects=', substring(osm_type from 1 for 1),\n" +
                "                   osm_id, '&addtags=fhrs:id=', \"FHRSID\",\n" +
@@ -342,11 +438,11 @@ class Database(object):
                "                   CASE WHEN \"AddressLine3\" IS NOT NULL THEN\n" +
                "                       CONCAT('%7Cfixme:addr3=', \"AddressLine3\") END,\n" +
                "                   CASE WHEN \"AddressLine4\" IS NOT NULL THEN\n" +
-               "                       CONCAT('%7Cfixme:addr3=', \"AddressLine4\") END,\n" +
+               "                       CONCAT('%7Cfixme:addr4=', \"AddressLine4\") END,\n" +
                "                   CASE WHEN \"PostCode\" IS NOT NULL THEN\n" +
                "                       CONCAT('%7Caddr:postcode=', \"PostCode\") END,\n" +
                "                   '%7Csource:addr=FHRS Open Data',\n" +
-               "                   '\">Add tags in JOSM</a>') AS text,\n" +
+               "                   '\" target=\"_blank\">Add tags in JOSM</a>') AS text,\n" +
                "               \"addr:postcode\" as osm_postcode \n" +
                "           ) AS l\n" +
                "       )) AS properties\n" +
@@ -356,6 +452,34 @@ class Database(object):
                ") AS fc;")
 
         cur.execute(sql)
+        return cur.fetchone()[0]
+
+    def get_distant_matches_geojson(self, view_name='distant_matches', district_id=182):
+        """Create GeoJSON-formatted string for a single district using distant
+        matches view. This can be used to display data on a Leaflet slippy map.
+
+        view_name (string): name of view from which to gather data
+        district_id (integer): gid of district to use for filtering
+        Returns string
+        """
+
+        cur = self.connection.cursor()
+
+        # need to cast JSON as text to prevent result being interpreted into
+        # Python structures (psycopg2 issue #172)
+        sql = ("SELECT CAST(row_to_json(fc) AS TEXT)\n" +
+               "FROM (\n" +
+               "   SELECT 'FeatureCollection' AS type, array_to_json(array_agg(f)) AS features\n" +
+               "   FROM (\n" +
+               "       SELECT 'Feature' AS type,\n" +
+               "       ST_AsGeoJSON(geom)::json AS geometry\n" +
+               "       FROM " + view_name + " AS lg\n" +
+               "       WHERE district_id = %s\n" +
+               "   ) AS f\n" +
+               ") AS fc;")
+        values = (district_id,)
+
+        cur.execute(sql, values)
         return cur.fetchone()[0]
 
     def get_district_boundary_geojson(self, districts_table='districts', district_id=182):
@@ -438,23 +562,39 @@ class Database(object):
 
         return s
 
-    def get_district_postcode_errors(self, comparison_view='compare', district_id=182):
+    def get_district_postcode_errors(self, comparison_view='compare',
+                                     fhrs_table='fhrs_establishments', district_id=182):
         """Get OSM entities which have an fhrs:id that matches an FHRS
         establishment but has no postcode or a mismatching one.
 
+        comparison_view (string): name of comparison database view
+        fhrs_table (string): name of FHRS establishments database table
         district_id (integer): Boundary Line district ID
         Returns dict
         """
 
         dict_cur = self.connection.cursor(cursor_factory=DictCursor)
 
-        sql = ('SELECT osm_name, osm_postcode, fhrs_postcode,\n' +
-               'TRIM(TRAILING \' \' FROM osm_type) as osm_type, osm_id,\n' +
-               'CONCAT(substring(osm_type FROM 1 FOR 1), osm_id) AS osm_ident, osm_fhrsid\n' +
+        sql = ('SELECT osm_name, osm_id, osm_fhrsid, osm_postcode, fhrs_postcode,\n' +
+               'TRIM(TRAILING \' \' FROM osm_type) AS osm_type,\n' +
+               'CONCAT(substring(osm_type FROM 1 FOR 1), osm_id) AS osm_ident,\n' +
+               'CONCAT(\n' +
+               'CASE WHEN "AddressLine1" IS NOT NULL THEN\n' +
+               '    CONCAT(\'%7Cfixme:addr1=\', "AddressLine1") END,\n' +
+               'CASE WHEN "AddressLine2" IS NOT NULL THEN\n' +
+               '    CONCAT(\'%7Cfixme:addr2=\', "AddressLine2") END,\n' +
+               'CASE WHEN "AddressLine3" IS NOT NULL THEN\n' +
+               '    CONCAT(\'%7Cfixme:addr3=\', "AddressLine3") END,\n' +
+               'CASE WHEN "AddressLine4" IS NOT NULL THEN\n' +
+               '    CONCAT(\'%7Cfixme:addr4=\', "AddressLine4") END,\n' +
+               'CASE WHEN "PostCode" IS NOT NULL THEN\n' +
+               '    CONCAT(\'%7Caddr:postcode=\', "PostCode") END,\n' +
+               '\'%7Csource:addr=FHRS Open Data\') AS add_tags_string\n' +
                'FROM compare\n' +
-               'WHERE status = \'matched_postcode_error\' AND osm_district_id = %s')
-        values = (district_id,)
-        dict_cur.execute(sql, values)
+               'LEFT JOIN ' + fhrs_table + ' ON fhrs_fhrsid = "FHRSID"\n' +
+               'WHERE status = \'matched_postcode_error\' AND '
+               'osm_district_id = ' + str(district_id))
+        dict_cur.execute(sql)
 
         result = []
         for row in dict_cur.fetchall():
@@ -485,25 +625,181 @@ class Database(object):
 
         return result
 
+    def get_district_duplicates(self, osm_table='osm', fhrs_table='fhrs_establishments',
+                                district_id=182):
+        """Get OSM entities which have an fhrs:id shared by at least one OSM
+        entity within the specified district.
+
+        osm_table (string): name of OSM database table
+        fhrs_table (string): name of FHRS establishments database table
+        district_id (integer): Boundary Line district ID
+        Returns dict
+        """
+
+        dict_cur = self.connection.cursor(cursor_factory=DictCursor)
+
+        sql = ('SELECT id, TRIM(TRAILING ' ' FROM type) as type,\n' +
+               'CONCAT(substring(type FROM 1 FOR 1), id) AS osm_ident, "fhrs:id",\n' +
+               osm_table + '.district_id, name AS osm_name, "BusinessName" AS fhrs_name\n' +
+               'FROM ' + osm_table + '\n' +
+               'LEFT JOIN ' + fhrs_table + ' ON "fhrs:id" = CAST("FHRSID" AS TEXT)\n' +
+               'WHERE "fhrs:id" IN (\n' +
+               '    SELECT "fhrs:id" FROM osm\n' +
+               '    WHERE district_id = %s\n' +
+               '    GROUP BY "fhrs:id" HAVING COUNT("fhrs:id") > 1)\n' +
+               'ORDER BY "fhrs:id";')
+        values = (district_id,)
+        dict_cur.execute(sql, values)
+
+        result = []
+        for row in dict_cur.fetchall():
+            result.append(row)
+
+        return result
+
+    def get_district_distant_matches(self, distant_matches_view='distant_matches',
+                                     district_id=182):
+        """Get OSM entities that are matched to an FHRS establishment where
+        the OSM/FHRS locations are distant.
+
+        distant_matches_view (string): name of distant matches database view
+        district_id (integer): Boundary Line district ID
+        Returns dict
+        """
+
+        dict_cur = self.connection.cursor(cursor_factory=DictCursor)
+
+        sql = ('SELECT osm_id, osm_type,\n' +
+               'CONCAT(SUBSTRING(osm_type FROM 1 FOR 1), osm_id) AS osm_ident, fhrs_id,\n' +
+               'osm_name, fhrs_name, distance\n' +
+               'FROM ' + distant_matches_view + '\n' +
+               'WHERE district_id = %s' +
+               'ORDER BY distance;')
+        values = (district_id,)
+        dict_cur.execute(sql, values)
+
+        result = []
+        for row in dict_cur.fetchall():
+            result.append(row)
+
+        return result
+
+    def get_gpx(self, geog_col='fhrs_geog', name_col='fhrs_name',
+                view_name='compare', district_id_col='fhrs_district_id',
+                district_id=182, status=None):
+        """Return a GPX representation of waypoints from the database using
+        the specified parameters.
+
+        geog_col (string): name of column containing waypoint geography
+        name_col (string): name of column containing waypoint name
+        view_name (string): name of view which contains the data
+        district_id_col (string): name of column containing Boundary Line
+            district id
+        district_id (integer): Boundary Line district ID
+        status (string): status of waypoints to be selected e.g. 'matched'
+        Returns string
+        """
+
+        # use supplied variables to get waypoints from database
+        dict_cur = self.connection.cursor(cursor_factory=DictCursor)
+
+        sql = ("SELECT ST_Y(" + geog_col + "::geometry) as lat, " +
+               "ST_X(" + geog_col + "::geometry) as lon,\n" +
+               name_col + " as name\n" +
+               "FROM " + view_name + "\n" +
+               "WHERE " + district_id_col + "=%s")
+        if status:
+            sql += " AND status=%s"
+            values = (district_id, status)
+        else:
+            values = (district_id,)
+        dict_cur.execute(sql, values)
+
+        waypoints = [] # empty list to hold waypoint dicts
+        for row in dict_cur.fetchall():
+            if row['name']:
+                waypoints.append({'lat': str(row['lat']), 'lon': str(row['lon']),
+                                  'name': escape(row['name'])})
+            else:
+                waypoints.append({'lat': str(row['lat']), 'lon': str(row['lon']),
+                                  'name': '???'})
+
+        # create GPX file
+        output = ('<?xml version="1.0" encoding="UTF-8"?>\n' +
+            '<gpx version="1.0" creator="python-fhrs-osm"\n' +
+            '    xmlns="http://www.topografix.com/GPX/1/0">\n')
+        for waypoint in waypoints:
+            output += ('<wpt lat="' + waypoint['lat'] + '" lon="' + waypoint['lon'] + '">\n' +
+                '    <name>' + waypoint['name'] + '</name>\n' +
+                '</wpt>\n')
+        output += '</gpx>'
+        return output
+
 
 class OSMDataset(object):
     """A class which represents the OSM data we are using."""
 
-    def __init__(self, tag_value_list=[{'t': 'amenity', 'v': 'fast_food'},
-                                       {'t': 'amenity', 'v': 'restaurant'},
+    def __init__(self, tag_value_list=[{'t': 'amenity', 'v': 'bar'},
                                        {'t': 'amenity', 'v': 'cafe'},
-                                       {'t': 'amenity', 'v': 'pub'},
-                                       {'t': 'amenity', 'v': 'bar'},
-                                       {'t': 'amenity', 'v': 'nightclub'},
-                                       {'t': 'amenity', 'v': 'hospital'},
-                                       {'t': 'amenity', 'v': 'school'},
+                                       {'t': 'amenity', 'v': 'care_home'},
+                                       {'t': 'amenity', 'v': 'childcare'},
+                                       {'t': 'amenity', 'v': 'church_hall'},
+                                       {'t': 'amenity', 'v': 'cinema'},
                                        {'t': 'amenity', 'v': 'college'},
+                                       {'t': 'amenity', 'v': 'community_centre'},
+                                       {'t': 'amenity', 'v': 'community_hall'},
+                                       {'t': 'amenity', 'v': 'fast_food'},
+                                       {'t': 'amenity', 'v': 'fuel'},
+                                       {'t': 'amenity', 'v': 'hospital'},
+                                       {'t': 'amenity', 'v': 'ice_cream'},
+                                       {'t': 'amenity', 'v': 'kindergarten'},
+                                       {'t': 'amenity', 'v': 'nightclub'},
+                                       {'t': 'amenity', 'v': 'nursing_home'},
+                                       {'t': 'amenity', 'v': 'pharmacy'},
+                                       {'t': 'amenity', 'v': 'place_of_worship'},
+                                       {'t': 'amenity', 'v': 'post_office'},
+                                       {'t': 'amenity', 'v': 'pub'},
+                                       {'t': 'amenity', 'v': 'restaurant'},
+                                       {'t': 'amenity', 'v': 'school'},
+                                       {'t': 'amenity', 'v': 'social_club'},
+                                       {'t': 'amenity', 'v': 'social_facility'},
+                                       {'t': 'amenity', 'v': 'theatre'},
+                                       {'t': 'amenity', 'v': 'village_hall'},
+                                       {'t': 'club', 'v': 'scouts'},
+                                       {'t': 'club', 'v': 'social'},
+                                       {'t': 'club', 'v': 'sport'},
+                                       {'t': 'craft', 'v': 'brewery'},
+                                       {'t': 'craft', 'v': 'caterer'},
+                                       {'t': 'craft', 'v': 'confectionery'},
+                                       {'t': 'craft', 'v': 'distillery'},
+                                       {'t': 'craft', 'v': 'winery'},
+                                       {'t': 'shop', 'v': 'alcohol'},
+                                       {'t': 'shop', 'v': 'bakery'},
+                                       {'t': 'shop', 'v': 'butcher'},
+                                       {'t': 'shop', 'v': 'cheese'},
+                                       {'t': 'shop', 'v': 'chemist'},
+                                       {'t': 'shop', 'v': 'confectionery'},
+                                       {'t': 'shop', 'v': 'convenience'},
+                                       {'t': 'shop', 'v': 'deli'},
+                                       {'t': 'shop', 'v': 'delicatessen'},
+                                       {'t': 'shop', 'v': 'discount'},
+                                       {'t': 'shop', 'v': 'farm'},
+                                       {'t': 'shop', 'v': 'fishmonger'},
+                                       {'t': 'shop', 'v': 'greengrocer'},
+                                       {'t': 'shop', 'v': 'grocery'},
+                                       {'t': 'shop', 'v': 'health_food'},
+                                       {'t': 'shop', 'v': 'newsagent'},
+				       {'t': 'shop', 'v': 'pastry'},
+				       {'t': 'shop', 'v': 'seafood'},
+                                       {'t': 'shop', 'v': 'supermarket'},
+                                       {'t': 'shop', 'v': 'variety_store'},
                                        {'t': 'tourism', 'v': 'hotel'},
                                        {'t': 'tourism', 'v': 'guest_house'}],
                  tag_exists_list=['fhrs:id'],
-                 field_list=[{'name': 'fhrs:id', 'format': 'INT'},
+                 field_list=[{'name': 'fhrs:id', 'format': 'VARCHAR(50)'},
                              {'name': 'name', 'format': 'VARCHAR(100)'},
-                             {'name': 'addr:postcode', 'format': 'CHAR(10)'}],
+                             {'name': 'addr:postcode', 'format': 'VARCHAR(50)'},
+                             {'name': 'not:addr:postcode', 'format': 'VARCHAR(50)'}],
                  table_name='osm'):
         """Constructor
 
@@ -663,8 +959,6 @@ class OSMDataset(object):
         filter_ways (boolean): do we need to filter ways based on tag/value list?
         """
 
-        cur = connection.cursor()
-
         # nodes could be relevant or just contain geometry info for a way
         # so in any case we need to filter them based on our tag_value_list
         for node in result.get_nodes():
@@ -692,6 +986,10 @@ class OSMDataset(object):
                 self.write_entity(entity=way, lat=centroid['lat'],
                                   lon=centroid['lon'], connection=connection)
 
+        cur = connection.cursor()
+        cur.execute('CREATE INDEX ON ' + self.table_name + ' USING GIST (geog);')
+        connection.commit()
+
     def get_way_centroid(self, way):
         """Calculate the centroid of a way
 
@@ -706,11 +1004,17 @@ class OSMDataset(object):
             poly = Polygon(geom)
             cent = poly.centroid
             return {'lat': cent.y, 'lon': cent.x}
-        else:
-            # if way has fewer than 3 points, use average position of first two nodes
+        elif len(way.nodes) == 2:
+            # if way has 2 nodes, use average position
             lat = (way.nodes[0].lat + way.nodes[1].lat) / 2
             lon = (way.nodes[0].lon + way.nodes[1].lon) / 2
             return {'lat': lat, 'lon': lon}
+        elif len(way.nodes) == 1:
+            # if way has 1 node, use that position
+            # (unusual and certainly a bug but possible)
+            return {'lat': way.nodes[0].lat, 'lon': way.nodes[0].lon}
+        else:
+            raise RuntimeError
 
 
 class FHRSDataset(object):
@@ -719,14 +1023,16 @@ class FHRSDataset(object):
     api_base_url (string): base url for FHRS API
     api_headers (list of tuples): headers to add to HTTP request
     xmlns (string): namespace which prefixes tags when parsed with ElementTree
+    xmlns_meta (string): namespace which prefixes meta tags
     """
 
     api_base_url = 'http://api.ratings.food.gov.uk/'
     api_headers = [('x-api-version', 2),
                    ('accept', 'application/xml'),
-                   ('content-type', 'application/xml')]
+                   ('content-type', 'application/xml'),
+                   ('user-agent', 'python-fhrs-osm')]
     xmlns = '{http://schemas.datacontract.org/2004/07/FHRS.Model.Detailed}'
-    #xmlns_basic = '{http://schemas.datacontract.org/2004/07/FHRS.Model.Basic}'
+    xmlns_meta = '{http://schemas.datacontract.org/2004/07/FHRS.Model.MetaLinks}'
 
     def __init__(self,
                  est_field_list=[{'name': 'BusinessName', 'format': 'VARCHAR(100)'},
@@ -752,8 +1058,15 @@ class FHRSDataset(object):
         self.est_table_name = est_table_name
         self.auth_table_name = auth_table_name
 
-    def api_download(self, endpoint):
-        """Use the FHRS API to download XML data
+    def api_download(self, endpoint, max_attempts = 7, first_sleep_time = 3):
+        """
+        Use the FHRS API to download XML data. If first attempt fails, wait
+        and try again. The sleep time progressively increases using the
+        formula first_sleep_time ** attempt.
+
+        endpoint (string): endpoint part of URL
+        max_attempts (integer): max number of attempts
+        first_sleep_time (integer): sleep time (secs) after 1st bad attempt
 
         Returns XML string
         """
@@ -761,11 +1074,28 @@ class FHRSDataset(object):
         request = urllib2.Request(url)
         for header, content in self.api_headers:
             request.add_header(header, content)
-        try:
-            response = urllib2.urlopen(request)
-        except URLError:
-            print "Couldn't get data using FHRS endpoint " + endpoint
-            print "Continuing..."
+
+        attempt = 0
+        while attempt < max_attempts:
+            attempt += 1
+            try:
+                response = urllib2.urlopen(request)
+                break # exit while loop if successful
+            except:
+                print "Error when trying to get data from FHRS API"
+                print "URL: " + url
+                print "Headers: " + repr(request.header_items())
+                if attempt == max_attempts: # final attempt
+                    print "Exception from final attempt:"
+                    raise
+                else:
+                    # wait before trying again
+                    sleep_time = first_sleep_time ** attempt
+                    print "Sleeping {} secs before next attempt".format(
+                        sleep_time
+                    )
+                    sleep(sleep_time)
+
         return response.read()
 
     def download_authorities(self):
@@ -781,8 +1111,25 @@ class FHRSDataset(object):
         authority_id (integer): ID of authority
         Returns XML string
         """
-        endpoint = 'Establishments?localAuthorityId=' + str(authority_id)
-        return self.api_download(endpoint=endpoint)
+
+        page = 1
+        total_pages = 1 # assume 1 page for now
+        xml_list = [] # list to hold xml strings
+
+        # if this is the first page or there is another to download
+        while (page == 1 or page <= total_pages):
+            # download this page (max 200 establishments) and add to list
+            endpoint = ('Establishments?localAuthorityId=' + str(authority_id) +
+                        '&pageNumber=' + str(page) + '&pageSize=200') 
+            xml_list.append(self.api_download(endpoint=endpoint))
+            if (page == 1):
+                # after the first page has been downloaded, get total number of pages
+                root = xml.etree.ElementTree.fromstring(xml_list[page - 1])
+                total_pages = int(root.findtext(self.xmlns_meta + 'meta/' +
+                                                self.xmlns_meta + 'totalPages'))
+            page += 1
+
+        return xml_list
 
     def create_authority_table(self, connection):
         """(Re)create the FHRS authority table, first dropping any existing
@@ -882,68 +1229,81 @@ class FHRSDataset(object):
             else:
                 connection.commit()
 
-    def write_establishments(self, xml_string, connection):
-        """Write the FHRS establishments from the XML string to the database
+    def write_establishments(self, xml_list, connection):
+        """Write the FHRS establishments from a list of XML strings to the database
 
-        xml_string (string): XML containing establishment info
+        xml_list (list of strings): list of XML strings containing
+            establishment info
         connection (object): database connection
         """
 
-        root = xml.etree.ElementTree.fromstring(xml_string)
+        for xml_string in xml_list: # i.e. for each page of results for this authority
 
-        for est in root.iter(self.xmlns + 'establishment'):
-            # create a blank dict to store relevant data for this establishment
-            # need to keep it in order so we can write it to the database
-            record = OrderedDict()
+            root = xml.etree.ElementTree.fromstring(xml_string)
 
-            # put FHRSID, position and LocalAuthorityCode into record dict
-            record['FHRSID'] = est.find(self.xmlns + 'FHRSID').text
-            record['geog'] = None
-            geocode = est.find(self.xmlns + 'geocode')
-            lon = geocode.find(self.xmlns + 'longitude').text
-            lat = geocode.find(self.xmlns + 'latitude').text
-            if lon is not None and lat is not None:
-                record['geog'] = ("ST_GeogFromText('SRID=4326;POINT(" +
-                                  str(lon) + " " + str(lat) + ")')")
-            record['LocalAuthorityCode'] = est.find(self.xmlns + 'LocalAuthorityCode').text
+            for est in root.iter(self.xmlns + 'establishment'):
+                # create a blank dict to store relevant data for this establishment
+                # need to keep it in order so we can write it to the database
+                record = OrderedDict()
 
-            # start with this record's other fields set to None
-            for this_field in self.est_field_list:
-                record[this_field['name']] = None
+                # put FHRSID, position and LocalAuthorityCode into record dict
+                record['FHRSID'] = est.find(self.xmlns + 'FHRSID').text
+                record['geog'] = None
+                geocode = est.find(self.xmlns + 'geocode')
+                lon = geocode.find(self.xmlns + 'longitude').text
+                lat = geocode.find(self.xmlns + 'latitude').text
+                if lon is not None and lat is not None:
+                    record['geog'] = ("ST_GeogFromText('SRID=4326;POINT(" +
+                                      str(lon) + " " + str(lat) + ")')")
+                record['LocalAuthorityCode'] = est.find(self.xmlns + 'LocalAuthorityCode').text
 
-            # fill record dict from XML using field list
-            for this_field in self.est_field_list:
-                if est.find(self.xmlns + this_field['name']).text is not None:
-                    record[this_field['name']] = est.find(self.xmlns + this_field['name']).text
+                # start with this record's other fields set to None
+                for this_field in self.est_field_list:
+                    record[this_field['name']] = None
 
-            # create an SQL statement and matching tuple of values to insert
-            values_list = []
-            sql = "INSERT INTO " + self.est_table_name + " VALUES ("
-            for key in record.keys():
-                if key == 'geog' and record['geog'] is not None:
-                    sql += record['geog']
+                # fill record dict from XML using field list
+                for this_field in self.est_field_list:
+                    if est.find(self.xmlns + this_field['name']).text is not None:
+                        record[this_field['name']] = est.find(self.xmlns + this_field['name']).text
+
+                # create an SQL statement and matching tuple of values to insert
+                values_list = []
+                sql = "INSERT INTO " + self.est_table_name + " VALUES ("
+                for key in record.keys():
+                    if key == 'geog' and record['geog'] is not None:
+                        sql += record['geog']
+                    else:
+                        values_list.append(record[key])
+                        sql += "%s"
+                    # if not last key/value pair in record, add a comma
+                    if (key != record.keys()[-1]):
+                        sql += ","
+                values = tuple(values_list)
+                sql += ")"
+
+                cur = connection.cursor()
+
+                try:
+                    cur.execute(sql, values)
+                except (psycopg2.DataError, psycopg2.IntegrityError) as e:
+                    connection.rollback()
+                    print "\nCouldn't insert the following FHRS establishment data:"
+                    print record
+                    print "The reason given was:"
+                    print repr(e)
+                    print "Continuing..."
                 else:
-                    values_list.append(record[key])
-                    sql += "%s"
-                # if not last key/value pair in record, add a comma
-                if (key != record.keys()[-1]):
-                    sql += ","
-            values = tuple(values_list)
-            sql += ")"
+                    connection.commit()
 
-            cur = connection.cursor()
+    def create_fhrs_indexes(self, connection):
+        """Create database indexes for FHRS establishments table
 
-            try:
-                cur.execute(sql, values)
-            except (psycopg2.DataError, psycopg2.IntegrityError) as e:
-                connection.rollback()
-                print "\nCouldn't insert the following FHRS establishment data:"
-                print record
-                print "The reason given was:"
-                print repr(e)
-                print "Continuing..."
-            else:
-                connection.commit()
+        connection (object): database connection
+        """
+        cur = connection.cursor()
+        cur.execute('CREATE INDEX ON ' + self.est_table_name + ' (CAST ("FHRSID" AS TEXT));')
+        cur.execute('CREATE INDEX ON ' + self.est_table_name + ' USING GIST (geog);')
+        connection.commit()
 
     def get_authorities(self, connection, region_name=None):
         """Return a list of FHRS authority IDs (without those for Northern

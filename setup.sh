@@ -10,12 +10,16 @@ fi
 source config.py
 
 pip install overpy || exit 1
-pip install psycopg2 || exit 1
+pip install psycopg2-binary || exit 1
 pip install shapely || exit 1
 dropdb --if-exists $dbname || exit 1
 createdb $dbname || exit 1
 psql -d $dbname -c "create extension postgis; create extension fuzzystrmatch;" || exit 1
 ./import_bline_districts.sh || exit 1
+if [[ $use_xml_file == True ]]
+then
+	./filter-osm.sh || exit 1
+fi
 python get_fhrs_data.py || exit 1
 python get_osm_data.py || exit 1
 python process_data.py || exit 1
@@ -25,4 +29,5 @@ then
 fi
 mkdir ./html || exit 1
 mkdir ./html/json || exit 1
+mkdir ./html/gpx || exit 1
 python create_output_files.py || exit 1
