@@ -311,7 +311,7 @@ for dist in districts:
         // add OSM tile layer to each map
 
         L.tileLayer('https://a.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 18,
+            maxZoom: 19,
             attribution: '&copy; <a href="http://openstreetmap.org" target="_blank">OpenStreetMap' +
                 '</a> contributors. Contains <a href="http://www.ordnancesurvey.co.uk"' +
                 'target="_blank">Ordnance Survey</a> and ' +
@@ -320,7 +320,7 @@ for dist in districts:
         }).addTo(overview_map);
 
         L.tileLayer('https://a.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 18,
+            maxZoom: 19,
             attribution: '&copy; <a href="http://openstreetmap.org" target="_blank">OpenStreetMap' +
                 '</a> contributors. Contains <a href="http://www.ordnancesurvey.co.uk"' +
                 'target="_blank">Ordnance Survey</a> and ' +
