@@ -20,6 +20,16 @@ fi
 
 $osmosis_bin \
   --read-pbf $input_pbf \
+  --tf accept-relations fhrs:id=* \
+  --used-way \
+  --used-node outPipe.0="relations-fhrsid" \
+  \
+  --read-pbf $input_pbf \
+  --tf accept-relations $filter_list \
+  --used-way \
+  --used-node outPipe.0="relations-filter" \
+  \
+  --read-pbf $input_pbf \
   --tf accept-ways fhrs:id=* \
   --tf reject-relations \
   --used-node outPipe.0="ways-fhrsid" \
@@ -39,7 +49,9 @@ $osmosis_bin \
   --tf reject-ways \
   --tf reject-relations outPipe.0="nodes-filter" \
   \
+  --merge inPipe.0="relations-fhrsid" inPipe.1="relations-filter" \
   --merge inPipe.0="ways-fhrsid" inPipe.1="ways-filter" \
+  --merge \
   --merge inPipe.0="nodes-fhrsid" inPipe.1="nodes-filter" \
   --merge \
   --write-xml data/filtered.osm
