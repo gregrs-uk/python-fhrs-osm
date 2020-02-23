@@ -253,9 +253,9 @@ class Database(object):
                'INNER JOIN ' + fhrs_table + ' AS f\n' +
                'ON o.district_id = f.district_id\n' +
                # escape % with another %
-               'AND (f."BusinessName" LIKE \'%%\' || o.name || \'%%\'\n' +
-               '     OR o.name LIKE \'%%\' || f."BusinessName" || \'%%\'\n' +
-               '     OR levenshtein_less_equal(o.name, f."BusinessName", %s) < %s)\n' +
+               "AND (replace(lower(f.\"BusinessName\"),'&','and') LIKE '%%' || replace(lower(o.name),'&','and') || '%%'\n" +
+               "     OR replace(lower(o.name),'&','and') LIKE '%%' || replace(lower(f.\"BusinessName\"),'&','and') || \'%%\'\n" +
+               "     OR levenshtein_less_equal(replace(lower(o.name),'&','and'), replace(lower(f.\"BusinessName\"),'&','and'), %s) < %s)\n" +
                'AND ST_DWithin(o.geog, f.geog, %s, false)\n' + # false = don't use spheroid
                'WHERE o."fhrs:id" IS NULL\n' +
                # check that FHRS ID not already used by another OSM entity
