@@ -109,45 +109,45 @@ for dist in districts:
     <table>
         <tr>
             <td style='color: #4daf4a;'>
-                OSM nodes/ways with valid fhrs:id and matching addr:postcode or
+                OSM objects with valid fhrs:id and matching addr:postcode or
                 not:addr:postcode</td>
             <td>""" + str(dist['stats']['matched']) + """</td>
             <td></td>
         </tr>
         <tr>
             <td><span style='color: #c03ca5;'>
-                Relevant OSM nodes/ways with postcode but no valid fhrs:id</span></td>
+                Relevant OSM objects with postcode but no valid fhrs:id</span></td>
             <td>""" + str(dist['stats']['OSM_with_postcode']) + """</td>
             <td><a href="gpx/osm-unmatched-with-postcode-""" +
                 str(dist['id']) + """.gpx" download>GPX</a></td>
         </tr>
         <tr>
             <td style='color: #ff7f00;'>
-                Relevant OSM nodes/ways without postcode or fhrs:id</td>
+                Relevant OSM objects without postcode or fhrs:id</td>
             <td>""" + str(dist['stats']['OSM_no_postcode']) + """</td>
             <td><a href="gpx/osm-unmatched-no-postcode-""" +
                 str(dist['id']) + """.gpx" download>GPX</a></td>
         </tr>
             <tr>
             <td style='color: #e31a1c;'>
-                OSM nodes/ways with valid fhrs:id but mismatched/missing postcode</td>
+                OSM objects with valid fhrs:id but mismatched/missing postcode</td>
             <td>""" + str(dist['stats']['matched_postcode_error']) + """</td>
             <td></td>
         </tr>
         <tr>
-            <td style='color: #e31a1c;'>OSM nodes/ways with invalid fhrs:id</td>
+            <td style='color: #e31a1c;'>OSM objects with invalid fhrs:id</td>
             <td>""" + str(dist['stats']['mismatch']) + """</td>
             <td><a href="gpx/osm-invalid-fhrsid-""" +
                 str(dist['id']) + """.gpx" download>GPX</a></td>
         </tr>
         <tr>
-            <td style='color: #007fff;'>FHRS establishments with no matching OSM node/way</td>
+            <td style='color: #007fff;'>FHRS establishments with no matching OSM object</td>
             <td>""" + str(dist['stats']['FHRS']) + """</td>
             <td><a href="gpx/fhrs-unmatched-""" +
                 str(dist['id']) + """.gpx" download>GPX</a></td>
         </tr>
         <tr>
-            <td>Total number of relevant OSM nodes/ways</td>
+            <td>Total number of relevant OSM objects</td>
             <td>""" + str(dist['stats']['total_OSM']) + """</td>
             <td></td>
         </tr>
@@ -162,14 +162,14 @@ for dist in districts:
             <td></td>
         </tr>
         <tr>
-            <td>Percentage of relevant OSM nodes/ways with a postcode**</td>
+            <td>Percentage of relevant OSM objects with a postcode**</td>
             <td>""" + '%.1f' % dist['stats']['OSM_matched_or_postcode_pc'] + """%</td>
             <td></td>
         </tr>
     </table>
-    <p style="font-size: 80%">*A match is considered successful when the OSM node/way's fhrs:id
+    <p style="font-size: 80%">*A match is considered successful when the OSM objects's fhrs:id
     matches an FHRS one and the OSM addr:postcode or not:addr:postcode matches the FHRS one.</p>
-    <p style="font-size: 80%">**OSM nodes/ways with an addr:postcode or not:addr:postcode that
+    <p style="font-size: 80%">**OSM objects with an addr:postcode or not:addr:postcode that
     matches the FHRS postcode, or with an addr:postcode but no fhrs:id tag.</p>
 
     <h3>Overview</h3>
@@ -525,9 +525,9 @@ html = ("""
 
 <h2>Districts</h2>
 
-<p style="font-size: 80%">Matched: % of FHRS establishments matched to an OSM node/way using
+<p style="font-size: 80%">Matched: % of FHRS establishments matched to an OSM object using
 the fhrs:id tag. N.B. the OSM addr:postcode or not:addr:postcode must match the FHRS one.</p>
-<p style="font-size: 80%">Postcodes: % of OSM nodes/ways with an addr:postcode or not:addr:postcode
+<p style="font-size: 80%">Postcodes: % of OSM objects with an addr:postcode or not:addr:postcode
 that matches the FHRS one or with an addr:postcode tag and no fhrs:id tag.</p>
 
 <table>
