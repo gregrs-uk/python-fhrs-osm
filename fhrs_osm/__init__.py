@@ -6,6 +6,7 @@ import urllib2
 import xml.etree.ElementTree
 from xml.sax.saxutils import escape
 from shapely.geometry import Polygon
+from shapely.geometry import MultiPoint
 from time import sleep
 
 
@@ -879,16 +880,11 @@ class OSMDataset(object):
         # tag/value list
         query += '(\n'
         for this in self.tag_value_list:
-            query += '\tnode["' + this['t'] + '"="' + this['v'] + '"];\n'
-            query += '\tway["' + this['t'] + '"="' + this['v'] + '"];\n'
-            # TODO: not supporting relations until we can parse them properly
-            # query += '\trelation["' + this['t'] + '"="' + this['v'] + '"];\n\n'
+            query += '\tnwr["' + this['t'] + '"="' + this['v'] + '"];\n'
+
         # tag exists list
         for this in self.tag_exists_list:
-            query += '\tnode["' + this + '"];\n'
-            query += '\tway["' + this + '"];\n'
-            # TODO: not supporting relations until we can parse them properly
-            # query += '\trelation["' + this + '"];\n\n'
+            query += '\tnwr["' + this + '"];\n'
 
         query += ');\n'
 
@@ -937,6 +933,8 @@ class OSMDataset(object):
             record['type'] = 'node'
         elif (type(entity) == overpy.Way):
             record['type'] = 'way'
+        elif (type(entity) == overpy.Relation):
+            record['type'] = 'relation'
 
         # start with this record's tags set to None
         for this_field in fields_to_check:
@@ -1000,19 +998,34 @@ class OSMDataset(object):
                     break
 
         for way in result.get_ways():
+            # if filter_ways is True:
+            # iterate through this way's tags/values
+            for tag, value in way.tags.iteritems():
+                # if this tag/value or tag match our criteria
+                if {'t': tag, 'v': value} in self.tag_value_list or tag in self.tag_exists_list:
+                    # write to DB and stop checking this way's tags/values
+                    centroid = self.get_way_centroid(way)
+                    self.write_entity(entity=way, lat=centroid['lat'],
+                                      lon=centroid['lon'], connection=connection)
+                    break
+            # else:
+            #     centroid = self.get_way_centroid(way)
+            #     self.write_entity(entity=way, lat=centroid['lat'],
+            #                       lon=centroid['lon'], connection=connection)
+
+        for relation in result.get_relations():
             if filter_ways is True:
-                # iterate through this way's tags/values
-                for tag, value in way.tags.iteritems():
+                for tag, value in relation.tags.iteritems():
                     # if this tag/value or tag match our criteria
                     if {'t': tag, 'v': value} in self.tag_value_list or tag in self.tag_exists_list:
-                        # write to DB and stop checking this way's tags/values
-                        centroid = self.get_way_centroid(way)
-                        self.write_entity(entity=way, lat=centroid['lat'],
-                                          lon=centroid['lon'], connection=connection)
+                        # write to DB and stop checking this relation's tags/values
+                        centroid = self.get_relation_centroid(relation)
+                        self.write_entity(entity=relation, lat=centroid['lat'],
+                                      lon=centroid['lon'], connection=connection)
                         break
             else:
-                centroid = self.get_way_centroid(way)
-                self.write_entity(entity=way, lat=centroid['lat'],
+                centroid = self.get_relation_centroid(relation)
+                self.write_entity(entity=relation, lat=centroid['lat'],
                                   lon=centroid['lon'], connection=connection)
 
         cur = connection.cursor()
@@ -1044,6 +1057,29 @@ class OSMDataset(object):
             return {'lat': way.nodes[0].lat, 'lon': way.nodes[0].lon}
         else:
             raise RuntimeError
+
+    def get_relation_centroid(self, relation):
+        """Calculate a representative centre-point for a relation
+
+        relation (object): overpy.Relation object
+        Returns dict of lat/lon
+        """
+        geom = []
+        for member in relation.members:
+            if isinstance(member, overpy.RelationWay):
+                way = member.resolve()
+                for node in way.nodes:
+                    geom.append((node.lon, node.lat))
+            elif isinstance(member, overpy.RelationNode):
+                node = member.resolve()
+                geom.append((node.lon, node.lat))
+
+        if len(geom) > 0:
+            mp = MultiPoint(geom)
+            bbox = mp.bounds
+            return {'lat': 0.5*(bbox[1]+bbox[3]), 'lon': 0.5*(bbox[0]+bbox[2])}
+        else:
+            return {'lat': 0, 'lon': 0}
 
 
 class FHRSDataset(object):
