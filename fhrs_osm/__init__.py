@@ -829,10 +829,10 @@ class OSMDataset(object):
 
         sql = 'CREATE TABLE ' + self.table_name + '\n'
         # N.B. field names case sensitive because surrounded by ""
-        sql += '(id BIGINT, geog GEOGRAPHY(POINT, 4326), type CHAR(8),\n'
+        sql += '(id BIGINT, geog GEOGRAPHY(POINT, 4326), type CHAR(8), idx SMALLINT,\n'
         for this_field in self.field_list:
             sql += '"' + this_field['name'] + '" ' + this_field['format'] + ','
-        sql += '\nPRIMARY KEY (id, type))'
+        sql += '\nPRIMARY KEY (id, type, idx))'
         cur.execute(sql)
         connection.commit()
 
@@ -906,6 +906,7 @@ class OSMDataset(object):
             record['type'] = 'way'
         elif (type(entity) == overpy.Relation):
             record['type'] = 'relation'
+        record['idx'] = 0
 
         # start with this record's tags set to None
         for this_field in fields_to_check:
@@ -919,34 +920,46 @@ class OSMDataset(object):
                 # if we found a matching tag, we don't need to check for it again
                 fields_to_check.remove(entity_key)
 
-        # create an SQL statement and matching tuple of values to insert
-        values_list = []
-        sql = "INSERT INTO " + self.table_name + " VALUES ("
-        for key in record.keys():
-            if key == 'geog':
-                sql += record['geog']
-            else:
-                values_list.append(record[key])
-                sql += "%s"
-            # if not last key/value pair in record, add a comma
-            if (key != record.keys()[-1]):
-                sql += ","
-        values = tuple(values_list)
-        sql += ")"
-
-        cur = connection.cursor()
-
-        try:
-            cur.execute(sql, values)
-        except (psycopg2.DataError, psycopg2.IntegrityError) as e:
-            connection.rollback()
-            print "\nCouldn't insert the following OSM data:"
-            print record
-            print "The reason given was:"
-            print repr(e)
-            print "Continuing..."
+        # Set up array of FHRS IDs
+        if record['fhrs:id'] is None:
+            fhrsids = [ None ]
         else:
-            connection.commit()
+            fhrsids = sorted(set(record['fhrs:id'].split(";")))
+
+        # Loop over each fhrsid
+        for i in range(len(fhrsids)):
+            record['idx'] = i
+            record['fhrs:id'] = fhrsids[i]
+
+            # create an SQL statement and matching tuple of values to insert
+            values_list = []
+            sql = "INSERT INTO " + self.table_name + " VALUES ("
+            for key in record.keys():
+                if key == 'geog':
+                    sql += record['geog']
+                else:
+                    values_list.append(record[key])
+                    sql += "%s"
+                    # if not last key/value pair in record, add a comma
+                if (key != record.keys()[-1]):
+                    sql += ","
+            values = tuple(values_list)
+            sql += ")"
+
+            cur = connection.cursor()
+
+            try:
+                cur.execute(sql, values)
+            except (psycopg2.DataError, psycopg2.IntegrityError) as e:
+                connection.rollback()
+                print "\nCouldn't insert the following OSM data:"
+                print record
+                print "The reason given was:"
+                print repr(e)
+                print "Continuing..."
+            else:
+                connection.commit()
+
 
     def write_result_nodes_and_ways(self, result, connection, filter_ways=True):
         """Filter the OSM nodes and ways from the query result and write
