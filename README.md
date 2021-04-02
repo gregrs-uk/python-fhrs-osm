@@ -1,4 +1,11 @@
 # [python-fhrs-osm](http://github.com/gregrs-uk/python-fhrs-osm)
+
+---
+
+**Please note that this tool has now been superseded by [FHODOT](https://github.com/gregrs-uk/fhodot/).**
+
+---
+
 Python tools for downloading and comparing Food Hygiene Rating Scheme (FHRS) and OpenStreetMap (OSM) data and finding possible matches between it, together with Leaflet slippy maps for visualising the data.
 
 ## Maps and statistics for Great Britain
